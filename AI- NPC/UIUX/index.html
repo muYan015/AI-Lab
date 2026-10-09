@@ -1,0 +1,1399 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI NPC 可交互世界 · UI／UX 设计规范预览 v1.0</title>
+<style>
+:root{
+  /* 纸与墨：界面 90% 无彩；色彩只留给主行动按钮与语义状态 */
+  --bg-canvas:#FBFAF8; --bg-surface:#FFFFFF; --bg-sunken:#F4F1EC; --bg-hover:#F6F4F0; --bg-active:#EFEBE4;
+  --text-primary:#17191B; --text-secondary:#454A4E; --text-muted:#667075;
+  --line:#EAE6DF; --line-strong:#DBD6CE;
+  --ink:#17191B; --ink-soft:#F1EFEA;
+  --brand:#17191B; --brand-soft:#F1EFEA;
+  --action:#316C87; --action-ink:#21566E; --action-soft:rgba(49,108,135,.09); --action-line:rgba(49,108,135,.30);
+  --action-hover:#275A72; --action-press:#1E495C;
+  --success:#3D7355; --warning:#8A6A1F; --danger:#A83B32; --neutral-state:#667075;
+  --r-xs:4px; --r-sm:8px; --r-md:12px; --r-lg:16px; --r-xl:24px; --r-pill:999px;
+  /* 柔和投影：暖灰 + 低透明度 + 大扩散，不使用生硬的黑投影 */
+  --sh-sm:0 1px 2px rgba(28,25,22,.035), 0 6px 16px -8px rgba(28,25,22,.055);
+  --sh-md:0 2px 4px rgba(28,25,22,.04), 0 16px 32px -12px rgba(28,25,22,.085);
+  --sh-lg:0 4px 10px rgba(28,25,22,.05), 0 36px 64px -20px rgba(28,25,22,.13);
+  --grad-soft:linear-gradient(180deg,#FFFFFF 0%,#FBF9F6 100%);
+  --font-sans:"Inter","PingFang SC","HarmonyOS Sans SC","Microsoft YaHei",system-ui,sans-serif;
+  --font-serif:"Noto Serif SC","Songti SC","Source Han Serif SC",Georgia,serif;
+  --font-mono:"JetBrains Mono","SFMono-Regular",ui-monospace,Menlo,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--bg-canvas);color:var(--text-primary);font-family:var(--font-sans);font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased}
+
+/* ---------- preview shell ---------- */
+.wrap{display:flex;align-items:flex-start}
+.side{width:248px;flex:0 0 248px;position:sticky;top:0;height:100vh;overflow-y:auto;background:transparent;padding:28px 10px 40px 24px}
+.side .brandmark{font-family:var(--font-serif);font-size:17px;font-weight:600;padding:0 12px 4px}
+.side .sub{font-size:12px;color:var(--text-muted);padding:0 12px 20px;letter-spacing:.02em}
+.side a{display:block;padding:8px 12px;border-radius:var(--r-sm);color:var(--text-secondary);text-decoration:none;font-size:14px;margin-bottom:2px}
+.side a:hover{background:rgba(23,25,27,.045)}
+.side a.on{background:var(--bg-surface);color:var(--ink);font-weight:500;box-shadow:var(--sh-sm)}
+.side .grp{font-size:12px;color:var(--text-muted);padding:16px 12px 6px;letter-spacing:.06em}
+.main{flex:1;min-width:0;padding:40px 40px 120px;max-width:1180px}
+header.doc{padding-bottom:8px;margin-bottom:40px}
+
+/* ---------- 滚动触发 ---------- */
+.reveal{opacity:0;transform:translateY(14px);transition:opacity .45s ease,transform .45s cubic-bezier(.2,.8,.24,1)}
+.reveal.in{opacity:1;transform:none}
+@media(prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}}
+
+/* ---------- 便当盒布局 ---------- */
+.bento{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:64px}
+.bento .b{background:var(--grad-soft);border:1px solid rgba(23,25,27,.05);border-radius:20px;padding:22px;box-shadow:var(--sh-sm);display:flex;flex-direction:column;gap:7px;transition:box-shadow .2s ease,transform .2s ease}
+.bento .b:hover{box-shadow:var(--sh-md)}
+.bento .b .k{font-size:11px;letter-spacing:.1em;color:var(--text-muted);text-transform:uppercase}
+.bento .b .v{font-size:26px;font-weight:600;line-height:1.2;letter-spacing:-.01em}
+.bento .b .d{font-size:13.5px;color:var(--text-secondary);line-height:1.65}
+.bento .s2{grid-column:span 2}
+.bento .r2{grid-row:span 2}
+@media(max-width:900px){.bento{grid-template-columns:repeat(2,1fr)}.bento .s2{grid-column:span 2}.bento .r2{grid-row:span 1}}
+header.doc h1{font-family:var(--font-serif);font-size:36px;line-height:1.25;font-weight:600;margin:0 0 8px}
+header.doc p{margin:0;color:var(--text-secondary);font-size:15px;max-width:680px}
+.meta{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+.sec{margin-bottom:72px;scroll-margin-top:24px}
+.sec>h2{font-family:var(--font-serif);font-size:30px;line-height:1.3;font-weight:600;margin:0 0 6px}
+.sec>.lead{color:var(--text-secondary);font-size:15px;margin:0 0 28px;max-width:760px}
+h3.sub{font-size:18px;font-weight:600;margin:36px 0 14px}
+.note{font-size:13px;color:var(--text-muted);margin:10px 0 0}
+
+/* ---------- generic demo panel ---------- */
+.panel{background:var(--grad-soft);border:1px solid rgba(23,25,27,.06);border-radius:var(--r-md);padding:24px;box-shadow:var(--sh-sm)}
+.panel+.panel{margin-top:16px}
+.plabel{font-size:12px;letter-spacing:.06em;color:var(--text-muted);margin-bottom:16px;text-transform:uppercase}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.row.tight{gap:8px}
+.col{display:flex;flex-direction:column;gap:12px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+@media(max-width:1000px){.grid2,.grid3,.grid4{grid-template-columns:1fr}}
+
+/* ---------- tokens ---------- */
+.swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.sw{border:1px solid var(--line);border-radius:var(--r-sm);overflow:hidden;background:#fff}
+.sw .chip{height:64px;width:100%;display:flex}
+.sw .info{padding:8px 10px;font-size:12px;line-height:1.45}
+.sw .info b{display:block;font-size:13px;font-weight:600}
+.sw .info span{color:var(--text-muted);font-family:var(--font-mono)}
+.type-row{display:flex;align-items:baseline;gap:16px;padding:12px 0;border-bottom:1px solid var(--line)}
+.type-row:last-child{border-bottom:0}
+.type-row .tagv{width:120px;flex:0 0 120px;font-size:12px;color:var(--text-muted);font-family:var(--font-mono)}
+.type-row .spec{flex:1;font-size:13px;color:var(--text-muted)}
+.sp-row{display:flex;align-items:center;gap:16px;padding:8px 0}
+.sp-row .bar{background:var(--brand);height:16px;border-radius:var(--r-xs)}
+.sp-row .nm{width:80px;font-family:var(--font-mono);font-size:12px;color:var(--text-muted)}
+.rbox{background:#fff;border:1px solid var(--line);border-radius:var(--r-sm);padding:18px;text-align:center;font-size:12px;color:var(--text-muted);font-family:var(--font-mono)}
+.shbox{background:#fff;padding:22px;text-align:center;font-size:13px;color:var(--text-secondary)}
+
+/* ---------- components ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:40px;padding:0 16px;border-radius:var(--r-sm);font-size:14px;font-weight:500;font-family:inherit;border:1px solid transparent;cursor:default;white-space:nowrap}
+.btn.primary{background:var(--action);color:#fff}
+.btn.secondary{background:#fff;border-color:var(--line-strong);color:var(--text-primary)}
+.btn.text{background:transparent;color:var(--brand);padding:0 10px}
+.btn.danger{background:var(--danger);color:#fff}
+.btn.sm{height:32px;font-size:13px;padding:0 12px}
+.btn.lg{height:48px;font-size:15px;padding:0 22px}
+.btn:disabled,.btn.disabled{opacity:.5}
+.btn.ghostload{background:var(--brand);color:#fff}
+.spin{width:14px;height:14px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;display:inline-block}
+
+.input{height:40px;border:1px solid var(--line-strong);border-radius:var(--r-sm);background:#fff;padding:0 12px;font-size:14px;font-family:inherit;color:var(--text-primary);display:flex;align-items:center;min-width:200px}
+.input.focus{border-color:var(--ink);box-shadow:0 0 0 3px rgba(23,25,27,.10)}
+.input.err{border-color:var(--danger)}
+.input.mono{font-family:var(--font-mono);font-size:13px}
+.input .ph{color:var(--text-muted)}
+textarea.tx{border:1px solid var(--line-strong);border-radius:var(--r-sm);padding:10px 12px;font-size:14px;font-family:inherit;min-height:76px;width:100%;resize:none;background:#fff}
+.fld{display:flex;flex-direction:column;gap:6px}
+.fld label{font-size:13px;font-weight:500;color:var(--text-secondary)}
+.fld .help{font-size:12px;color:var(--text-muted)}
+.fld .errmsg{font-size:12px;color:var(--danger)}
+
+.chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:var(--r-pill);font-size:12px;font-weight:500;border:1px solid var(--line-strong);background:#fff;color:var(--text-secondary)}
+.chip .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+.chip.brand{color:var(--action-ink);border-color:var(--action-line);background:var(--action-soft)}
+.chip.success{color:var(--success);border-color:rgba(61,115,85,.3);background:rgba(61,115,85,.07)}
+.chip.neutral{color:var(--neutral-state);border-color:var(--line-strong);background:var(--bg-sunken)}
+.chip.danger{color:var(--danger);border-color:rgba(168,59,50,.3);background:rgba(168,59,50,.07)}
+.chip.dashed{border-style:dashed;background:transparent}
+.chip.warn{color:var(--warning);border-color:rgba(138,106,31,.3);background:rgba(138,106,31,.08)}
+.tag{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:var(--r-xs);background:var(--bg-sunken);font-size:12px;color:var(--text-secondary)}
+.tag b{font-weight:400;color:var(--text-muted);margin-left:6px}
+
+.card{background:var(--grad-soft);border:1px solid rgba(23,25,27,.06);border-radius:var(--r-md);padding:20px;box-shadow:var(--sh-sm)}
+.card h4{margin:0 0 6px;font-size:16px;font-weight:600}
+.card p{margin:0;font-size:14px;color:var(--text-secondary)}
+.seg{display:inline-flex;background:var(--bg-sunken);border-radius:var(--r-sm);padding:2px}
+.seg span{padding:6px 14px;font-size:13px;border-radius:6px;color:var(--text-secondary)}
+.seg span.on{background:#fff;color:var(--text-primary);font-weight:500;box-shadow:var(--sh-sm)}
+.sw2{width:44px;height:24px;border-radius:var(--r-pill);background:var(--line-strong);position:relative;flex:0 0 44px}
+.sw2 i{position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:var(--sh-sm)}
+.sw2.on{background:var(--action)}
+.sw2.on i{left:23px}
+.av{border-radius:50%;background:linear-gradient(160deg,#F9F7F3,#EDE9E2);box-shadow:inset 0 0 0 1px rgba(23,25,27,.07);display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:500;color:var(--text-secondary);flex:0 0 auto;position:relative}
+.av.b24{width:24px;height:24px;font-size:11px}
+.av.b32{width:32px;height:32px;font-size:12px}
+.av.b40{width:40px;height:40px}
+.av.b64{width:64px;height:64px;font-size:20px}
+.av .st{position:absolute;right:-1px;bottom:-1px;width:10px;height:10px;border-radius:50%;border:2px solid #fff}
+.st.online{background:var(--success)} .st.busy{background:var(--warning)}
+.st.absent{background:var(--neutral-state)} .st.gen{background:var(--action)}
+.li{display:flex;align-items:center;gap:12px;padding:12px;border-radius:var(--r-sm)}
+.li:hover{background:var(--bg-hover)}
+.li.on{background:var(--bg-sunken);box-shadow:inset 3px 0 0 var(--ink)}
+.li .t{flex:1;min-width:0}
+.li .t b{display:block;font-size:14px;font-weight:500}
+.li .t span{font-size:13px;color:var(--text-muted);display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.li .rt{font-size:12px;color:var(--text-muted);text-align:right}
+.empty{text-align:center;padding:36px 20px}
+.empty .art{width:96px;height:96px;margin:0 auto 16px;border-radius:var(--r-xl);background:var(--bg-sunken);display:flex;align-items:center;justify-content:center}
+.empty h4{margin:0 0 6px;font-size:17px;font-weight:600}
+.empty p{margin:0 0 16px;font-size:14px;color:var(--text-secondary)}
+.skel{background:var(--bg-sunken);border-radius:var(--r-sm);height:12px;margin-bottom:10px}
+.skel.w70{width:70%} .skel.w50{width:50%} .skel.w90{width:90%}
+.skel.big{height:20px;width:40%;margin-bottom:16px}
+.toast{display:inline-flex;align-items:center;gap:8px;background:#17191B;color:#fff;padding:10px 14px;border-radius:var(--r-sm);font-size:13px;box-shadow:var(--sh-md)}
+.inline{display:flex;gap:10px;border:1px solid var(--line);border-left:4px solid var(--warning);border-radius:var(--r-sm);padding:12px 14px;background:#fff}
+.inline.dg{border-left-color:var(--danger)}
+.inline.br{border-left-color:var(--brand)}
+.inline b{display:block;font-size:14px;font-weight:600}
+.inline span{font-size:13px;color:var(--text-secondary)}
+
+/* ---------- app frames ---------- */
+.frame{background:#fff;border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden;box-shadow:var(--sh-sm)}
+.frame>.cap{padding:10px 16px;border-bottom:1px solid var(--line);background:var(--bg-sunken);font-size:12px;color:var(--text-muted);display:flex;justify-content:space-between;align-items:center}
+.frame>.cap b{font-size:13px;color:var(--text-secondary);font-weight:600}
+.app{display:flex;height:520px}
+.app-side{width:196px;flex:0 0 196px;background:var(--bg-canvas);padding:16px 10px}
+.app-side .wname{font-size:13px;font-weight:600;padding:6px 8px 12px;border-bottom:1px solid var(--line);margin-bottom:12px}
+.app-side .wname span{display:block;font-size:11px;color:var(--text-muted);font-weight:400}
+.app-side .nv{display:flex;align-items:center;gap:10px;padding:8px;border-radius:var(--r-sm);font-size:14px;color:var(--text-secondary);margin-bottom:2px}
+.app-side .nv.on{background:var(--bg-surface);color:var(--ink);font-weight:500;box-shadow:var(--sh-sm)}
+.app-side .nv .ic{width:16px;height:16px;border-radius:4px;background:currentColor;opacity:.55}
+.app-main{flex:1;min-width:0;display:flex;flex-direction:column}
+.app-top{height:52px;flex:0 0 52px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;padding:0 16px}
+.app-top .nm{font-size:15px;font-weight:600}
+.app-top .sp{flex:1}
+.app-body{flex:1;padding:16px;overflow:hidden}
+.app-body.scroll{overflow-y:auto}
+.app-inp{flex:0 0 auto;border-top:1px solid var(--line);padding:12px 16px}
+.worldbar{height:32px;flex:0 0 32px;border-bottom:1px solid var(--line);background:var(--bg-surface);display:flex;align-items:center;gap:8px;padding:0 16px;font-size:12px;color:var(--text-muted)}
+
+.stream{max-width:680px;margin:0 auto}
+.msg{display:flex;gap:10px;margin-bottom:14px;align-items:flex-start}
+.msg.me{flex-direction:row-reverse}
+.bub{max-width:76%;padding:10px 14px;border-radius:var(--r-md);font-size:14.5px;line-height:1.65}
+.bub.npc{background:#fff;border:1px solid var(--line)}
+.bub.me{background:#17191B;color:#fff}
+.bub.fuzzy{border:1px dashed var(--line-strong);color:var(--text-muted);font-style:italic}
+.bub .corner{display:inline-block;margin-left:8px;font-size:11px;font-style:normal;color:var(--text-muted);border:1px dashed var(--line-strong);border-radius:var(--r-xs);padding:0 5px;vertical-align:1px}
+.sysline{text-align:center;font-size:12.5px;color:var(--text-muted);margin:14px 0}
+.sysline.box{background:var(--bg-sunken);border-radius:var(--r-sm);padding:8px 12px;display:block}
+.actbar{display:flex;gap:8px;padding:8px 0;flex-wrap:wrap}
+.inputline{display:flex;gap:8px;align-items:flex-end}
+.inputline .grow{flex:1}
+
+/* dialog */
+.mask{position:relative;background:#fff;border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--sh-lg);padding:0;max-width:400px}
+.mask .hd{padding:18px 20px 0;font-size:16px;font-weight:600;display:flex;gap:10px;align-items:center}
+.mask .bd{padding:10px 20px 16px;font-size:14px;color:var(--text-secondary)}
+.mask .ft{padding:12px 20px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px}
+.code{font-family:var(--font-mono);font-size:12px;background:var(--bg-sunken);border-radius:var(--r-xs);padding:2px 6px;display:inline-block}
+.impact{border:1px solid var(--line);border-radius:var(--r-sm);margin-top:10px;overflow:hidden}
+.impact div{padding:8px 12px;font-size:13px;display:flex;justify-content:space-between;border-bottom:1px solid var(--line)}
+.impact div:last-child{border-bottom:0}
+.impact div span{color:var(--text-muted)}
+
+/* phone */
+.phone{width:320px;flex:0 0 320px;background:#fff;border:1px solid var(--line-strong);border-radius:28px;overflow:hidden;box-shadow:var(--sh-md);display:flex;flex-direction:column;height:600px}
+.phone .p-top{height:48px;flex:0 0 48px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;padding:0 14px;font-size:14px;font-weight:600}
+.phone .p-body{flex:1;overflow:hidden;padding:12px}
+.phone .p-nav{height:56px;flex:0 0 56px;border-top:1px solid var(--line);display:flex;background:var(--bg-surface)}
+.phone .p-nav div{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:11px;color:var(--text-muted)}
+.phone .p-nav div.on{color:var(--brand);font-weight:500}
+.phone .p-nav i{width:20px;height:20px;border-radius:5px;background:currentColor;opacity:.6;display:block}
+.phone .p-nav div.on i{opacity:1}
+
+/* table */
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;font-size:12px;letter-spacing:.05em;color:var(--text-muted);font-weight:500;background:var(--bg-sunken);padding:10px 12px;border-bottom:1px solid var(--line)}
+td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:0}
+td code{font-family:var(--font-mono);font-size:12px;background:var(--bg-sunken);padding:1px 5px;border-radius:var(--r-xs)}
+.ok{color:var(--success)} .no{color:var(--danger)} .mid{color:var(--warning)}
+.tl{position:relative;padding-left:20px;margin:0}
+.tl:before{content:"";position:absolute;left:5px;top:4px;bottom:4px;width:2px;background:var(--line)}
+.tl .it{position:relative;padding-bottom:18px}
+.tl .it:before{content:"";position:absolute;left:-19px;top:6px;width:8px;height:8px;border-radius:50%;background:var(--brand);border:2px solid #fff}
+.tl .it .tt{font-size:12px;color:var(--text-muted);font-family:var(--font-mono)}
+.tl .it b{font-size:14px;font-weight:600;display:block;margin:2px 0}
+.tl .it p{margin:2px 0 0;font-size:13px;color:var(--text-secondary)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--text-muted);align-items:center}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.mini{width:100%;height:auto;display:block}
+.split{display:grid;grid-template-columns:280px 1fr;gap:16px}
+.split3{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:900px){.split,.split3{grid-template-columns:1fr}}
+.centerbox{max-width:420px;margin:0 auto}
+.bigtitle{font-family:var(--font-serif)}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+.kv:last-child{border-bottom:0}
+.kv span{color:var(--text-muted)}
+.acc{border:1px solid var(--line);border-radius:var(--r-sm);margin-bottom:8px;background:#fff;overflow:hidden}
+.acc .h{padding:12px 14px;font-size:14px;font-weight:500;display:flex;justify-content:space-between;align-items:center}
+.acc .h em{font-style:normal;font-size:12px;color:var(--text-muted);font-weight:400}
+.acc .c{padding:0 14px 14px;font-size:13px;color:var(--text-secondary)}
+.conflict{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--line);border-radius:var(--r-sm);overflow:hidden}
+.conflict .side-a,.conflict .side-b{padding:12px 14px;font-size:13px}
+.conflict .side-a{background:var(--bg-sunken);border-right:1px solid var(--line)}
+.conflict .lbl{font-size:11px;color:var(--text-muted);letter-spacing:.05em;margin-bottom:4px}
+.srconly{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav class="side">
+  <div class="brandmark">AI NPC 可交互世界</div>
+  <div class="sub">UI／UX 设计规范 v1.0 · 静态预览</div>
+  <div class="grp">规范</div>
+  <a href="#s1" class="on">1 设计原则</a>
+  <a href="#s2">2 设计令牌</a>
+  <a href="#s3">3 组件库</a>
+  <a href="#s4">4 状态语义</a>
+  <div class="grp">界面</div>
+  <a href="#s5">5 导航与主框架</a>
+  <a href="#s6">6 对话与酒馆</a>
+  <a href="#s7">7 人物 · 关系 · 动态</a>
+  <a href="#s8">8 世界与创作</a>
+  <a href="#s9">9 礼物与事务</a>
+  <a href="#s10">10 记录 · 简报 · 广场</a>
+  <a href="#s11">11 设置与错误</a>
+  <a href="#s12">12 移动端</a>
+  <div class="grp">附录</div>
+  <a href="#s13">13 文案与无障碍</a>
+  <a href="#s14">14 交付与 QA</a>
+</nav>
+
+<main class="main">
+<header class="doc">
+  <h1>AI NPC 可交互世界 · UI／UX 设计规范</h1>
+  <p>本页为规范的<b>静态界面预览</b>，仅用于查看设计语言、组件与界面样式，不含任何功能逻辑。所有内容取自 PRD v2.0 与 T20 窗口清单，未拍板项按保守方案呈现。</p>
+  <div class="meta">
+    <span class="chip brand"><span class="dot"></span>版本 v1.0</span>
+    <span class="chip neutral">2026-10-09</span>
+    <span class="chip neutral">覆盖 T20 71 项界面</span>
+    <span class="chip neutral">WCAG 2.1 AA</span>
+  </div>
+</header>
+
+<!-- 便当盒总览 -->
+<div class="bento reveal">
+  <div class="b s2 r2">
+    <div class="k">设计语言 · 纸与墨</div>
+    <div class="v" style="font-family:var(--font-serif);font-size:32px">纸 与 墨</div>
+    <div class="d">界面 90% 无彩：暖纸白 <span class="code">#FBFAF8</span> 打底，墨黑 <span class="code">#17191B</span> 承载文字、控件与选中态。唯一的彩色只留给主行动按钮和语义状态——所以按钮一出现，天然就是视线焦点。</div>
+    <div class="row tight" style="margin-top:auto;padding-top:12px">
+      <span class="chip"><span class="dot" style="background:#FBFAF8;box-shadow:inset 0 0 0 1px #DBD6CE"></span>纸</span>
+      <span class="chip"><span class="dot" style="background:#17191B"></span>墨</span>
+      <span class="chip brand"><span class="dot"></span>行动</span>
+    </div>
+  </div>
+  <div class="b">
+    <div class="k">行动色</div>
+    <div class="v" style="color:#316C87">#316C87</div>
+    <div class="d">全站唯一的彩色。饱和 47%，只用于主行动按钮与关键链接，用量控制在 5% 以内。</div>
+  </div>
+  <div class="b">
+    <div class="k">字阶</div>
+    <div class="v">36 · 24 · 16</div>
+    <div class="d">衬线只用于世界名与纪事标题；控件一律无衬线。</div>
+  </div>
+  <div class="b s2">
+    <div class="k">柔和投影</div>
+    <div class="row" style="gap:14px;margin:2px 0">
+      <div style="flex:1;height:56px;border-radius:12px;background:#fff;box-shadow:var(--sh-sm)"></div>
+      <div style="flex:1;height:56px;border-radius:12px;background:#fff;box-shadow:var(--sh-md)"></div>
+      <div style="flex:1;height:56px;border-radius:12px;background:#fff;box-shadow:var(--sh-lg)"></div>
+    </div>
+    <div class="d">暖灰 <span class="code">rgba(28,25,22,.04)</span> + 大扩散，不用生硬的黑投影。悬停只加深阴影，不做位移。</div>
+  </div>
+  <div class="b s2">
+    <div class="k">六套语义系统</div>
+    <div class="v">6 套</div>
+    <div class="row tight" style="gap:6px">
+      <span class="tag">认知边界</span><span class="tag">事务三段</span><span class="tag">角色 vs 系统</span><span class="tag">关系描述</span><span class="tag">编辑影响</span><span class="tag">隐私范围</span>
+    </div>
+    <div class="d">PRD 里「可验收的真实感」在界面上的唯一落点，也是本规范的核心。</div>
+  </div>
+  <div class="b s2">
+    <div class="k">事务五态</div>
+    <div class="row tight" style="margin:2px 0">
+      <span class="chip dashed"><span class="dot"></span>待确认</span>
+      <span class="chip brand"><span class="dot"></span>处理中</span>
+      <span class="chip success"><span class="dot"></span>已确认</span>
+      <span class="chip neutral"><span class="dot"></span>被拒绝</span>
+      <span class="chip danger"><span class="dot"></span>未完成</span>
+    </div>
+    <div class="d">「被拒绝」是角色意愿，用中性灰；「未完成」是系统或事务失败，才用红色。</div>
+  </div>
+  <div class="b s2">
+    <div class="k">无障碍</div>
+    <div class="v">AA · 4.5:1</div>
+    <div class="d">正文对比度逐项核算并全部达标；键盘可达、焦点可见、读屏可朗读、动效可减少。</div>
+  </div>
+  <div class="b s2">
+    <div class="k">覆盖范围</div>
+    <div class="v">71 个界面</div>
+    <div class="d">T20 全部界面对象 + 8 条通用要求。手机单列、桌面多栏，同一任务两端都能完成。</div>
+  </div>
+</div>
+
+<!-- 1 设计原则 -->
+<section class="sec reveal" id="s1">
+  <h2>1 · 设计原则</h2>
+  <p class="lead">五条原则按优先级排序，冲突时以序号靠前的为准。它们把 PRD 里"可验收的真实感"翻译成界面约束。</p>
+  <div class="grid2">
+    <div class="card"><h4>P1 不撒谎</h4><p>界面呈现的必须与世界真实发生的一致：不可辨内容只给线索；系统故障绝不伪装成角色不理人；未保存不显示"已保存"。</p></div>
+    <div class="card"><h4>P2 状态可辨</h4><p>每件"还在路上"的事都有独立可区分的样子：意图／执行中／已确认／被拒绝／失败五态分离。</p></div>
+    <div class="card"><h4>P3 边界可见</h4><p>谁能知道什么要能被感知：感知范围用虚线表达，受众外内容根本不渲染（灰掉也算泄漏）。</p></div>
+    <div class="card"><h4>P4 内容优先</h4><p>视觉退到文字后面：单色系 + 一个强调色，无渐变炫技，动效只服务状态变化。</p></div>
+    <div class="card" style="grid-column:1/-1"><h4>P5 同一套说法</h4><p>同一动作在所有界面同一名称、同一结果。「删除」不在这里叫删除、那里叫移除；拒绝与失败不混用颜色。</p></div>
+  </div>
+  <div class="panel" style="margin-top:16px">
+    <div class="plabel">反面清单 · 设计评审逐条查</div>
+    <div class="row">
+      <span class="tag">给关系加数值条</span>
+      <span class="tag">用红色表达"角色拒绝"</span>
+      <span class="tag">系统报错写成角色台词</span>
+      <span class="tag">加载动画掩盖"其实没在动"</span>
+      <span class="tag">灰色预告感知外的信息</span>
+      <span class="tag">为填满版面生成占位剧情</span>
+    </div>
+  </div>
+</section>
+
+<!-- 2 设计令牌 -->
+<section class="sec reveal" id="s2">
+  <h2>2 · 设计令牌</h2>
+  <p class="lead">「纸与墨」：界面 90% 无彩——暖纸白底 + 墨黑文字与控件；唯一的彩色留给主行动按钮与语义状态。层级靠底色深浅建立，不靠投影堆叠。</p>
+
+  <h3 class="sub">2.1 中性色（纸与墨）</h3>
+  <div class="swatches">
+    <div class="sw"><div class="chip" style="background:#FBFAF8"></div><div class="info"><b>画布</b><span>#FBFAF8</span></div></div>
+    <div class="sw"><div class="chip" style="background:#FFFFFF;border-bottom:1px solid #E3DED6"></div><div class="info"><b>面板</b><span>#FFFFFF</span></div></div>
+    <div class="sw"><div class="chip" style="background:#F4F1EC"></div><div class="info"><b>下沉底</b><span>#F4F1EC</span></div></div>
+    <div class="sw"><div class="chip" style="background:#17191B"></div><div class="info"><b>主文本 15.8:1</b><span>#17191B</span></div></div>
+    <div class="sw"><div class="chip" style="background:#454A4E"></div><div class="info"><b>次级文本 7.1:1</b><span>#454A4E</span></div></div>
+    <div class="sw"><div class="chip" style="background:#667075"></div><div class="info"><b>辅助文本 4.9:1</b><span>#667075</span></div></div>
+    <div class="sw"><div class="chip" style="background:#EAE6DF"></div><div class="info"><b>分隔线（极淡）</b><span>#EAE6DF</span></div></div>
+    <div class="sw"><div class="chip" style="background:#DBD6CE"></div><div class="info"><b>描边（强）</b><span>#DBD6CE</span></div></div>
+    <div class="sw"><div class="chip" style="background:linear-gradient(180deg,#FFFFFF,#FBF9F6)"></div><div class="info"><b>卡片渐变过渡</b><span>#FFF → #FBF9F6</span></div></div>
+    <div class="sw"><div class="chip" style="background:#F1EFEA"></div><div class="info"><b>墨的极淡底（选中）</b><span>#F1EFEA</span></div></div>
+  </div>
+
+  <h3 class="sub">2.2 唯一强调色与语义色</h3>
+  <p class="lead">行动色取<b>石青</b>：色相 199°（往青偏，是矿物颜料的方向，不是屏幕蓝），饱和 47%——比浏览器默认蓝低一半。低饱和是「舒服」的来源，高对比是「醒目」的来源，两者不冲突。</p>
+  <div class="swatches">
+    <div class="sw"><div class="chip" style="background:#316C87"></div><div class="info"><b>石青 · 行动色 5.8:1</b><span>#316C87 · 饱和 47%</span></div></div>
+    <div class="sw"><div class="chip" style="background:#275A72"></div><div class="info"><b>悬停态 7.5:1</b><span>#275A72</span></div></div>
+    <div class="sw"><div class="chip" style="background:#1E495C"></div><div class="info"><b>按下态 9.7:1</b><span>#1E495C</span></div></div>
+    <div class="sw"><div class="chip" style="background:#EEF3F7"></div><div class="info"><b>行动色淡底（选中/进行中）</b><span>#EEF3F7</span></div></div>
+    <div class="sw"><div class="chip" style="background:#17191B"></div><div class="info"><b>墨黑 · 我的气泡 / 选中竖条</b><span>#17191B</span></div></div>
+    <div class="sw"><div class="chip" style="background:#667075"></div><div class="info"><b>拒绝 / 缺席（角色侧）</b><span>#667075</span></div></div>
+    <div class="sw"><div class="chip" style="background:#3D7355"></div><div class="info"><b>已确认 / 已保存 5.6:1</b><span>#3D7355</span></div></div>
+    <div class="sw"><div class="chip" style="background:#8A6A1F"></div><div class="info"><b>降级 / 待校准 5.0:1</b><span>#8A6A1F</span></div></div>
+    <div class="sw"><div class="chip" style="background:#A83B32"></div><div class="info"><b>失败（仅系统/事务）6.3:1</b><span>#A83B32</span></div></div>
+    <div class="sw"><div class="chip" style="background:#21566E"></div><div class="info"><b>石青文字版（链接）7.7:1</b><span>#21566E</span></div></div>
+  </div>
+  <div class="inline dg" style="margin-top:16px;border-left-width:4px">
+    <div><b>颜色语义铁律</b><span>红色 = 系统或事务失败；灰色 = 角色意愿造成的拒绝、缺席、结束关系。二者绝不能互换。这是 RK-10 在视觉层的落点。</span></div>
+  </div>
+
+  <h3 class="sub">2.3 字阶</h3>
+  <div class="panel">
+    <div class="type-row"><div class="tagv">display 36</div><div style="font-size:36px;line-height:44px;font-weight:600">空状态与引导页主标题</div><div class="spec">36 / 44 / 600</div></div>
+    <div class="type-row"><div class="tagv">h1 30</div><div style="font-size:30px;line-height:38px;font-weight:600">页面标题</div><div class="spec">30 / 38 / 600</div></div>
+    <div class="type-row"><div class="tagv">h2 24</div><div style="font-size:24px;line-height:32px;font-weight:600;font-family:var(--font-serif)">世界名 · 纪事标题（衬线）</div><div class="spec">24 / 32 / 600</div></div>
+    <div class="type-row"><div class="tagv">h3 20</div><div style="font-size:20px;line-height:28px;font-weight:600">卡片组标题</div><div class="spec">20 / 28 / 600</div></div>
+    <div class="type-row"><div class="tagv">body-lg 17</div><div style="font-size:17px;line-height:30px">对话正文比 UI 正文大一号，阅读优先</div><div class="spec">17 / 30 / 400</div></div>
+    <div class="type-row"><div class="tagv">body 16</div><div style="font-size:16px;line-height:26px">UI 正文与表单</div><div class="spec">16 / 26 / 400</div></div>
+    <div class="type-row"><div class="tagv">body-sm 14</div><div style="font-size:14px;line-height:22px">列表副文本与次级说明</div><div class="spec">14 / 22 / 400</div></div>
+    <div class="type-row"><div class="tagv">caption 13</div><div style="font-size:13px;line-height:20px;color:#667075">时间戳与图例</div><div class="spec">13 / 20 / 400</div></div>
+    <div class="type-row"><div class="tagv">meta 12</div><div style="font-size:12px;line-height:18px;font-family:var(--font-mono)">ERR-MODEL-429</div><div class="spec">12 / 18 / 500 · mono</div></div>
+  </div>
+
+  <h3 class="sub">2.4 间距（基准 4px）</h3>
+  <div class="panel">
+    <div class="sp-row"><div class="nm">4</div><div class="bar" style="width:4px"></div><div class="nm" style="width:auto">sp-1</div></div>
+    <div class="sp-row"><div class="nm">8</div><div class="bar" style="width:8px"></div><div class="nm" style="width:auto">sp-2 · 标签与控件</div></div>
+    <div class="sp-row"><div class="nm">12</div><div class="bar" style="width:12px"></div><div class="nm" style="width:auto">sp-3</div></div>
+    <div class="sp-row"><div class="nm">16</div><div class="bar" style="width:16px"></div><div class="nm" style="width:auto">sp-4 · 卡片间距（移动内边距）</div></div>
+    <div class="sp-row"><div class="nm">20</div><div class="bar" style="width:20px"></div><div class="nm" style="width:auto">sp-5 · 卡片内边距 / 表单字段间距</div></div>
+    <div class="sp-row"><div class="nm">24</div><div class="bar" style="width:24px"></div><div class="nm" style="width:auto">sp-6</div></div>
+    <div class="sp-row"><div class="nm">32</div><div class="bar" style="width:32px"></div><div class="nm" style="width:auto">sp-8 · 分区间距（移动）</div></div>
+    <div class="sp-row"><div class="nm">40</div><div class="bar" style="width:40px"></div><div class="nm" style="width:auto">sp-10 · 分区间距（桌面）</div></div>
+    <div class="sp-row"><div class="nm">48 / 64</div><div class="bar" style="width:64px"></div><div class="nm" style="width:auto">sp-12 / sp-16 · 页面级留白</div></div>
+  </div>
+
+  <h3 class="sub">2.5 圆角 · 阴影</h3>
+  <div class="grid4">
+    <div class="rbox" style="border-radius:4px">r-xs 4<br>角标 · 徽章</div>
+    <div class="rbox" style="border-radius:8px">r-sm 8<br>按钮 · 输入框</div>
+    <div class="rbox" style="border-radius:12px">r-md 12<br>卡片 · 气泡</div>
+    <div class="rbox" style="border-radius:24px;padding:34px 18px">r-xl 24<br>空状态容器</div>
+  </div>
+  <div class="grid3" style="margin-top:16px">
+    <div class="shbox" style="box-shadow:var(--sh-sm)">sh-sm · 卡片静止</div>
+    <div class="shbox" style="box-shadow:var(--sh-md)">sh-md · 悬停 / 下拉</div>
+    <div class="shbox" style="box-shadow:var(--sh-lg)">sh-lg · 弹层 / 抽屉</div>
+  </div>
+  <h3 class="sub">2.6 图像上的文字（蒙版规则）</h3>
+  <div class="panel">
+    <div class="grid2">
+      <div style="border-radius:var(--r-sm);overflow:hidden;position:relative;background:linear-gradient(150deg,#8C8378,#4A453F);height:132px;display:flex;align-items:flex-end;padding:14px">
+        <div style="font-size:14px;color:#fff">灰烬港 · 第三日</div>
+        <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(23,25,27,0) 30%,rgba(23,25,27,.62) 100%);pointer-events:none"></div>
+        <div style="position:absolute;left:14px;bottom:14px;font-size:14px;color:#fff">灰烬港 · 第三日</div>
+      </div>
+      <div>
+        <div style="font-size:14px;font-weight:600;margin-bottom:8px">规则</div>
+        <div class="col" style="font-size:14px;color:#454A4E;gap:8px">
+          <div>本产品当前<b>不使用照片或插画背景</b>，界面全部为纯色与线稿，因此这条不常触发。</div>
+          <div>一旦在图像上叠字：底部加 <span class="code">rgba(23,25,27,.62)</span> 渐变蒙版，文字纯白，并重新核算对比度。</div>
+          <div>禁止把正文、状态文字放在无蒙版的图像上。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3 class="sub">2.7 动效</h3>
+  <div class="panel">
+    <div class="plabel">动效时长</div>
+    <table>
+      <tr><th>场景</th><th>时长</th><th>曲线</th></tr>
+      <tr><td>颜色 / 透明度变化</td><td><code>120ms</code></td><td>ease-out</td></tr>
+      <tr><td>小位移 · 展开收起 · Toast</td><td><code>200ms</code></td><td>cubic-bezier(.2,.8,.24,1)</td></tr>
+      <tr><td>弹层 / 抽屉进出</td><td><code>240ms 进 / 160ms 出</code></td><td>同上</td></tr>
+      <tr><td>骨架屏呼吸</td><td><code>1.2s 循环</code></td><td>ease-in-out</td></tr>
+    </table>
+    <p class="note">位移 ≤ 8px，缩放 ≤ 1.02，禁止弹跳过冲与无限循环；<code>prefers-reduced-motion</code> 下全部降级为 80ms 淡入或直接切换。</p>
+  </div>
+</section>
+
+<!-- 3 组件库 -->
+<section class="sec reveal" id="s3">
+  <h2>3 · 组件库</h2>
+  <p class="lead">基础组件 / 展示组件 / 反馈组件。每个组件必须给出全部交互态；每个界面必须给出空、加载、错误、边界四态。</p>
+
+  <h3 class="sub">3.1 按钮</h3>
+  <div class="panel">
+    <div class="row">
+      <button class="btn primary">主按钮</button>
+      <button class="btn secondary">次按钮</button>
+      <button class="btn text">文字按钮</button>
+      <button class="btn danger">危险操作</button>
+      <button class="btn primary disabled" disabled>禁用</button>
+      <button class="btn ghostload"><span class="spin"></span>处理中</button>
+    </div>
+    <div class="row" style="margin-top:14px">
+      <button class="btn primary sm">紧凑 32</button>
+      <button class="btn primary">常规 40</button>
+      <button class="btn primary lg">移动主行动 48</button>
+    </div>
+  </div>
+
+  <h3 class="sub">3.2 输入与选择</h3>
+  <div class="panel">
+    <div class="grid2">
+      <div class="col">
+        <div class="fld"><label>邮箱</label><div class="input"><span class="ph">you@example.com</span></div></div>
+        <div class="fld"><label>世界名称 <span style="color:#A83B32">必填</span></label><div class="input focus">灰烬港的最后一夜</div><div class="help">2–40 字，将作为世界内通用称呼</div></div>
+        <div class="fld"><label>API 密钥</label><div class="input err mono"><span class="ph">sk-••••••••3f7a</span></div><div class="errmsg">校验失败：该密钥无此模型权限</div></div>
+        <div class="fld"><label>背景设定</label><textarea class="tx">港口城市在三十年前的那场火里失去了半座城……</textarea><div class="help">支持 AI 补全；追加与覆盖是两个不同操作</div></div>
+      </div>
+      <div class="col">
+        <div class="plabel">选择器与开关</div>
+        <div class="row tight">
+          <span class="seg"><span class="on">全部</span><span>私聊</span><span>群聊</span><span>酒馆</span></span>
+        </div>
+        <div class="row" style="margin-top:12px;gap:18px">
+          <div class="row tight"><span class="sw2 on"><i></i></span><span style="font-size:13px">规则启用</span></div>
+          <div class="row tight"><span class="sw2"><i></i></span><span style="font-size:13px">停止自动分析</span></div>
+        </div>
+        <div class="plabel" style="margin-top:20px">复选 / 单选</div>
+        <div class="row tight" style="font-size:13px;gap:16px">
+          <span>◉ 以旅人进入</span><span>○ 设定世界内身份</span>
+        </div>
+        <div class="plabel" style="margin-top:20px">滑块（感知半径，必须显示数值）</div>
+        <div style="height:4px;background:#E3DED6;border-radius:4px;position:relative;margin:14px 0 8px">
+          <span style="position:absolute;left:0;top:0;bottom:0;width:52%;background:#17191B;border-radius:4px"></span>
+          <span style="position:absolute;left:52%;top:-6px;width:16px;height:16px;border-radius:50%;background:#fff;border:1px solid #D2CCC2;box-shadow:var(--sh-sm);margin-left:-8px"></span>
+        </div>
+        <div style="font-size:12px;color:#667075">视觉半径 8 米 · 听觉半径 6 米（首版假设，待校准）</div>
+      </div>
+    </div>
+  </div>
+
+  <h3 class="sub">3.3 状态 Chip 与标签</h3>
+  <div class="panel">
+    <div class="row">
+      <span class="chip dashed"><span class="dot"></span>待确认</span>
+      <span class="chip brand"><span class="dot"></span>处理中</span>
+      <span class="chip success"><span class="dot"></span>已确认</span>
+      <span class="chip neutral"><span class="dot"></span>被拒绝</span>
+      <span class="chip danger"><span class="dot"></span>未完成</span>
+      <span class="chip warn"><span class="dot"></span>规则级推进</span>
+    </div>
+    <div class="row" style="margin-top:14px">
+      <span class="tag">奇幻<b>×</b></span><span class="tag">港口<b>×</b></span><span class="tag">v3.2</span><span class="tag">派生自 灰烬港</span>
+    </div>
+    <p class="note">Chip 必须"色 + 点 + 文字"三重表达，禁止仅用颜色区分状态。</p>
+  </div>
+
+  <h3 class="sub">3.4 头像与状态点</h3>
+  <div class="panel">
+    <div class="row">
+      <span class="av b64">陈</span>
+      <span class="av b40">阿<span class="st online"></span></span>
+      <span class="av b40">柯<span class="st busy"></span></span>
+      <span class="av b40">柳<span class="st absent"></span></span>
+      <span class="av b40">闻<span class="st gen"></span></span>
+      <span class="av b32">舟</span>
+      <span class="av b24">七</span>
+    </div>
+    <div class="legend" style="margin-top:14px">
+      <span><i style="background:#3D7355"></i>在场</span>
+      <span><i style="background:#8A6A1F"></i>忙碌</span>
+      <span><i style="background:#667075"></i>缺席</span>
+      <span><i style="background:#316C87"></i>生成中</span>
+    </div>
+    <p class="note">角色没有"在线/离线"概念，只有忙碌、缺席、在场、生成中。</p>
+  </div>
+
+  <h3 class="sub">3.5 列表项</h3>
+  <div class="panel" style="padding:12px">
+    <div class="li on"><span class="av b40">陈<span class="st gen"></span></span><div class="t"><b>老陈</b><span>正在生成……</span></div><div class="rt">刚刚</div></div>
+    <div class="li"><span class="av b40">阿<span class="st online"></span></span><div class="t"><b>阿禾</b><span>那把刀我收下了，别再提。</span></div><div class="rt">3 分钟前</div></div>
+    <div class="li"><span class="av b40">柯<span class="st busy"></span></span><div class="t"><b>柯掌柜</b><span>在忙</span></div><div class="rt">12:40</div></div>
+    <div class="li"><span class="av b40">柳<span class="st absent"></span></span><div class="t"><b>柳三娘</b><span>缺席</span></div><div class="rt">昨日</div></div>
+    <div class="li"><span class="av b40">闻<span class="st online"></span></span><div class="t"><b>闻九 · TA 找过你</b><span>上次说的那件事，还算数吗？</span></div><div class="rt">周二</div></div>
+  </div>
+
+  <h3 class="sub">3.6 四态：空 / 加载 / 错误 / 边界</h3>
+  <div class="grid4">
+    <div class="card" style="padding:0">
+      <div class="empty">
+        <div class="art"><svg width="40" height="40" viewBox="0 0 40 40" fill="none" stroke="#667075" stroke-width="1.5"><rect x="6" y="10" width="28" height="20" rx="4"/><circle cx="14" cy="20" r="3"/><path d="M22 26h6"/></svg></div>
+        <h4>还没有会话</h4><p>从名册里挑一个人，直接开始聊。</p>
+        <button class="btn primary sm">打开名册</button>
+      </div>
+    </div>
+    <div class="card"><div class="plabel">加载中 · 骨架屏</div><div class="skel big"></div><div class="skel w90"></div><div class="skel w70"></div><div class="skel w50"></div><p class="note">首次加载用骨架屏；刷新用顶部进度条；&gt;3s 提示"仍在加载"。</p></div>
+    <div class="card"><div class="plabel">错误 · 内联提示</div><div class="inline dg" style="border:0;border-left:4px solid #A83B32;padding:0 0 0 12px"><div><b>加载失败</b><span>网络中断，未改动任何内容。</span></div></div><div style="margin-top:12px"><button class="btn secondary sm">重试</button></div></div>
+    <div class="card"><div class="plabel">边界</div><p style="font-size:14px"><b style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">一个非常非常长的世界名称会在这里被截断并保持单行</b><span style="font-size:13px;color:#667075">超长名称截断 + tooltip；≤360px 不出现横向滚动。</span></p></div>
+  </div>
+</section>
+
+<!-- 4 状态语义 -->
+<section class="sec reveal" id="s4">
+  <h2>4 · 状态语义系统</h2>
+  <p class="lead">六套语义系统是本规范最重要的部分，是 PRD 中"可验收的真实感"在界面上的唯一落点。</p>
+
+  <h3 class="sub">4.1 事务三段式（送礼 / 邀请 / 承诺 / 移动）</h3>
+  <div class="panel">
+    <div style="text-align:center;font-size:13px;color:#667075;margin-bottom:16px;font-family:var(--font-mono)">意图 → 待确认 → 执行中 → 已确认 / 被拒绝 / 失败</div>
+    <table>
+      <tr><th>状态</th><th>Chip</th><th>颜色</th><th>界面行为</th></tr>
+      <tr><td>意图已表达</td><td><span class="chip dashed"><span class="dot"></span>待确认</span></td><td>中性虚线</td><td>显示确认卡：送什么、给谁、可取消。<b>不扣减、不结算</b></td></tr>
+      <tr><td>执行中</td><td><span class="chip brand"><span class="dot"></span>处理中</span></td><td>墨青</td><td>禁用重复提交；关闭页面不中断，可回来查看结果</td></tr>
+      <tr><td>已确认</td><td><span class="chip success"><span class="dot"></span>已确认</span></td><td>成功绿</td><td>写入流水与纪事，可被后续引用</td></tr>
+      <tr><td>被拒绝</td><td><span class="chip neutral"><span class="dot"></span>被拒绝</span></td><td><b>中性灰</b></td><td>说明谁拒绝、为什么；可换个方式再来</td></tr>
+      <tr><td>失败</td><td><span class="chip danger"><span class="dot"></span>未完成</span></td><td>危险红</td><td>走系统错误家族；明确"没有送出、没有扣减"</td></tr>
+    </table>
+    <p class="note">幂等可见：同一事件的重试显示"你已在 3 分钟前送出，正在确认结果"，<b>不出现第二个赠送入口</b>。</p>
+  </div>
+
+  <h3 class="sub">4.2 角色状态 vs 系统状态</h3>
+  <div class="grid2">
+    <div class="card">
+      <div class="plabel" style="margin-bottom:10px">角色侧 · 中性灰</div>
+      <div class="bub npc" style="border-color:#E3DED6">老陈这会儿在忙，没搭话。<span class="corner">在忙</span></div>
+      <div class="sysline box" style="margin-top:12px">可以去找 <b>阿禾</b>，也可以稍后再来</div>
+      <p class="note">叙述体、带角色主语；<b>必须给可替代下一步</b>。</p>
+    </div>
+    <div class="card">
+      <div class="plabel" style="margin-bottom:10px">系统侧 · 统一弹窗</div>
+      <div class="mask" style="box-shadow:none;max-width:none">
+        <div class="hd" style="color:#A83B32">请求失败</div>
+        <div class="bd">模型服务未返回，本次内容没有生成，也没有改动任何状态。<br><span class="code" style="margin-top:8px">ERR-MODEL-429</span></div>
+        <div class="ft"><button class="btn text sm">复制错误码</button><button class="btn primary sm">重试</button></div>
+      </div>
+      <p class="note">任何系统故障不得写成角色台词；反之角色拒绝不得弹系统弹窗。</p>
+    </div>
+  </div>
+
+  <h3 class="sub">4.3 认知与可见性</h3>
+  <div class="panel">
+    <div class="stream" style="max-width:none">
+      <div class="msg"><span class="av b40">陈</span><div class="bub npc">灯灭之前，把门闩上。</div></div>
+      <div class="msg"><span class="av b40">柯</span><div class="bub npc fuzzy">……（隔了三张桌子，只听见有人在笑）<span class="corner">听不清</span></div></div>
+      <div class="msg"><span class="av b40">柳</span><div class="bub npc">据 <b>老陈</b> 说，昨夜码头丢了三箱货。<span class="corner">转述</span></div></div>
+      <div class="sysline">阿禾从后门离开了酒馆</div>
+    </div>
+    <div class="legend" style="margin-top:16px">
+      <span><i style="background:#fff;border:1px solid #D2CCC2"></i>清晰可辨（实线）</span>
+      <span><i style="background:#F4F1EC;border:1px dashed #D2CCC2"></i>部分可辨（虚线 + 斜体）</span>
+      <span><i style="background:#667075"></i>转述（标来源）</span>
+      <span style="color:#A83B32">受众外内容：完全不渲染</span>
+    </div>
+  </div>
+
+  <h3 class="sub">4.4 关系呈现：描述，不是刷分</h3>
+  <div class="panel">
+    <div class="grid2">
+      <div>
+        <div class="kv"><span>老陈 → 你</span><b>敬重，但不亲近</b></div>
+        <div class="kv"><span>你 → 老陈</span><b>信任，仍在试探</b></div>
+        <div class="kv"><span>对行为的喜好</span><b>讨厌被当众施恩</b></div>
+        <div class="kv"><span>短期情绪</span><b>警惕（今日见过生人）</b></div>
+        <div class="kv"><span>稳定关系类型</span><b>旧识 · 未结盟</b></div>
+        <p class="note">双向不对称分别成行，不合并成一个"关系值"；无证据时不显示任何数值或曲线。</p>
+      </div>
+      <div class="card" style="background:var(--bg-sunken)">
+        <div class="plabel">最近变化 · 可点回原会话</div>
+        <div class="tl">
+          <div class="it"><div class="tt">10-09 20:14 · 暮时 第三日</div><b>信任 ↑</b><p>你把那封信原样还给了他。触发事件：归还信件（观察者：老陈、阿禾）</p></div>
+          <div class="it"><div class="tt">10-07 · 夜 第一日</div><b>熟悉度 ↑</b><p>在酒馆同桌两次。触发事件：酒馆同桌</p></div>
+        </div>
+      </div>
+    </div>
+    <div class="inline" style="margin-top:16px;border-left-color:#B4623A">
+      <div><b>亲密与恋爱边界</b><span>条件不满足时给出「还不到这一步」+ 缺哪个条件；<b>不给"再送 3 次礼物就能解锁"这类引导</b>。</span></div>
+    </div>
+  </div>
+
+  <h3 class="sub">4.5 编辑影响 · 隐私范围</h3>
+  <div class="grid2">
+    <div class="card">
+      <div class="plabel">编辑影响预览（改之前先看后果）</div>
+      <div class="impact">
+        <div><span>将影响叙事</span><b>3 段</b></div>
+        <div><span>将影响记忆条目</span><b>7 条</b></div>
+        <div><span>将影响关系</span><b>2 组</b></div>
+      </div>
+      <div class="inline" style="margin-top:12px"><div><b>已执行的流水不退</b><span>可选择部分应用；原存档保留为副本。</span></div></div>
+      <div class="row" style="margin-top:12px"><button class="btn secondary sm">部分应用</button><button class="btn primary sm">全部应用</button></div>
+    </div>
+    <div class="card">
+      <div class="plabel">分享 / 发布范围确认</div>
+      <div class="kv"><span>将上传</span><b>世界定义、人物设定、公开关系</b></div>
+      <div class="kv"><span>不含 · 私人聊天</span><b class="ok">已排除</b></div>
+      <div class="kv"><span>不含 · 礼物与关系史</span><b class="ok">已排除</b></div>
+      <div class="kv"><span>不含 · NPC 私密记忆 / 真人画像 / API Key</span><b class="ok">已排除</b></div>
+      <div class="kv"><span>本次生成发往</span><b>OpenAI · api.openai.com</b></div>
+      <p class="note">"发往哪里"说明常驻不可折叠；密钥一律遮蔽显示。</p>
+    </div>
+  </div>
+</section>
+
+<!-- 5 导航 -->
+<section class="sec reveal" id="s5">
+  <h2>5 · 导航与主框架</h2>
+  <p class="lead">三个一级入口：对话（默认落地）、世界、我的。高频直达随最近使用变化，无死链。</p>
+  <div class="frame">
+    <div class="cap"><b>桌面主框架 ≥1280</b><span>侧栏 240 · 内容自适应 · 右栏 320（可选）</span></div>
+    <div class="app">
+      <div class="app-side">
+        <div class="wname">灰烬港的最后一夜<span>旅人 · 暮时 第三日</span></div>
+        <div class="nv on"><span class="ic"></span>对话</div>
+        <div class="nv"><span class="ic"></span>世界</div>
+        <div class="nv"><span class="ic"></span>我的</div>
+        <div style="height:12px"></div>
+        <div style="font-size:11px;color:#667075;padding:6px 8px;letter-spacing:.05em">直达</div>
+        <div class="nv"><span class="ic"></span>老陈</div>
+        <div class="nv"><span class="ic"></span>酒馆 · 夜</div>
+        <div class="nv"><span class="ic"></span>继续编辑：柳三娘</div>
+      </div>
+      <div class="app-main">
+        <div class="worldbar"><span class="chip brand" style="height:20px"><span class="dot"></span>当前世界</span><span>灰烬港的最后一夜</span><span style="flex:1"></span><span>身份：旅人 · 阿默</span><span>·</span><span>暮时 第三日 20:14</span></div>
+        <div class="app-top"><div class="nm">会话</div><div class="sp"></div><div class="input" style="height:32px;min-width:180px;font-size:13px"><span class="ph">搜索会话、人物、世界、纪事</span></div></div>
+        <div class="app-body" style="padding:8px">
+          <div class="li on"><span class="av b40">陈<span class="st gen"></span></span><div class="t"><b>老陈</b><span>正在生成……</span></div><div class="rt">刚刚<br><span class="chip brand" style="height:18px;font-size:11px"><span class="dot"></span>处理中</span></div></div>
+          <div class="li"><span class="av b40">阿</span><div class="t"><b>阿禾</b><span>那把刀我收下了，别再提。</span></div><div class="rt">3 分钟前</div></div>
+          <div class="li"><span class="av b40">柯<span class="st busy"></span></span><div class="t"><b>柯掌柜</b><span>在忙</span></div><div class="rt">12:40</div></div>
+          <div class="li"><span class="av b40">七</span><div class="t"><b>码头酒馆 · 夜</b><span>阿禾：谁把灯吹了？</span></div><div class="rt">19:58</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="panel" style="margin-top:16px">
+    <div class="plabel">导航规则</div>
+    <div class="grid3" style="gap:20px">
+      <div><b style="font-size:14px">落地页必须是会话列表</b><p class="note">不能是世界或引导页。这是总表验收样例之一。</p></div>
+      <div><b style="font-size:14px">我的作品主入口放「我的」</b><p class="note">不放广场。</p></div>
+      <div><b style="font-size:14px">切换世界 = 全上下文同步</b><p class="note">会话、名册、关系、纪事、身份档案必须一起变，任何一处未同步即为缺陷。</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 6 对话与酒馆 -->
+<section class="sec reveal" id="s6">
+  <h2>6 · 对话与酒馆</h2>
+  <p class="lead">对话是第一入口。消息流最大宽 720，气泡最大宽 76%；系统叙述居中、不与角色台词混排。</p>
+
+  <div class="frame">
+    <div class="cap"><b>UIX-14 私聊会话</b><span>最大宽 720 · 行动区在输入区上方</span></div>
+    <div class="app">
+      <div class="app-main">
+        <div class="app-top"><span class="av b32">陈<span class="st gen"></span></span><div class="nm">老陈</div><span class="chip brand" style="height:20px"><span class="dot"></span>正在生成</span><div class="sp"></div><span style="font-size:12px;color:#667075">暮时 第三日 20:14</span></div>
+        <div class="app-body">
+          <div class="stream">
+            <div class="sysline">10-09 19:40 · 你在码头边的酒馆后门遇见了他</div>
+            <div class="msg"><span class="av b40">陈</span><div class="bub npc">你又来了。上次那封信，我还留着。</div></div>
+            <div class="msg me"><span class="av b40">我</span><div class="bub me">我是来还东西的，不是来讨人情的。</div></div>
+            <div class="msg"><span class="av b40">陈</span><div class="bub npc">……好。那我记下了。<span style="display:block;margin-top:8px"><span class="chip success" style="height:20px"><span class="dot"></span>已确认 · 归还信件</span></span></div></div>
+            <div class="sysline">信任 ↑ · 触发事件：归还信件</div>
+            <div class="msg"><span class="av b40">陈</span><div class="bub npc">灯灭之前，把门闩上。<span style="display:inline-block;width:1px;height:14px;background:#17191B;vertical-align:-2px;margin-left:3px"></span></div></div>
+            <div class="actbar" style="justify-content:center"><button class="btn secondary sm">停止生成</button></div>
+          </div>
+        </div>
+        <div class="app-inp">
+          <div class="actbar">
+            <span class="chip">送礼</span><span class="chip">邀请</span><span class="chip">承诺</span><span class="chip">离开</span><span class="chip dashed">+ 更多</span>
+          </div>
+          <div class="inputline">
+            <textarea class="tx" style="min-height:44px">说点什么……</textarea>
+            <button class="btn secondary" style="height:44px">表情</button>
+            <button class="btn primary" style="height:44px">发送</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-top:16px">
+    <div class="plabel">消息级操作（长按 / 右键）</div>
+    <div class="row tight">
+      <span class="tag">编辑</span><span class="tag">删除</span><span class="tag">复制</span><span class="tag">末条重生成</span><span class="tag">引用</span><span class="tag">点名</span>
+    </div>
+    <p class="note">重生成需提示「不会重复结算已发生的事件」；停止后保留已生成文本 + 「已停止」标记。</p>
+  </div>
+
+  <h3 class="sub">6.1 酒馆会话 + 俯视小窗</h3>
+  <div class="frame">
+    <div class="cap"><b>UIX-16 / UIX-18 酒馆 · 俯视小窗</b><span>桌面右栏常驻 280–320 · 只画可感知范围</span></div>
+    <div class="app">
+      <div class="app-main">
+        <div class="app-top"><div class="nm">码头酒馆 · 夜</div><span class="chip neutral" style="height:20px"><span class="dot"></span>在场 5</span><div class="sp"></div><span style="font-size:12px;color:#667075">暮时 · 第三日</span></div>
+        <div class="app-body" style="padding:0;display:flex">
+          <div style="flex:1;padding:16px;overflow:hidden">
+            <div class="actbar" style="border-bottom:1px solid #E3DED6;padding-bottom:10px;margin-bottom:12px">
+              <span class="av b24">陈</span><span class="av b24">阿</span><span class="av b24">柯</span><span class="av b24">柳</span><span class="av b24">七</span>
+              <span style="font-size:12px;color:#667075;margin-left:6px">阿禾正在说话</span>
+            </div>
+            <div class="stream" style="max-width:none">
+              <div class="msg"><span class="av b32">阿</span><div class="bub npc">谁把灯吹了？</div></div>
+              <div class="msg"><span class="av b32">柯</span><div class="bub npc fuzzy">……（吧台那边杯响，听不清说的什么）<span class="corner">听不清</span></div></div>
+              <div class="sysline">老陈起身走向门口</div>
+              <div class="msg"><span class="av b32">柳</span><div class="bub npc">门口风大，坐回来罢。</div></div>
+              <div class="msg me"><span class="av b32">我</span><div class="bub me">（走近吧台）</div></div>
+              <div class="sysline box">移动意图已受理 · 执行中</div>
+            </div>
+          </div>
+          <div style="width:300px;flex:0 0 300px;border-left:1px solid #E3DED6;background:#FBFAF8;padding:14px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+              <b style="font-size:13px">俯视小窗</b><span style="font-size:12px;color:#667075">收起</span>
+            </div>
+            <svg class="mini" viewBox="0 0 260 200">
+              <rect x="0" y="0" width="260" height="200" fill="#F4F1EC"/>
+              <rect x="18" y="16" width="224" height="168" rx="8" fill="#FFFFFF" stroke="#E3DED6"/>
+              <rect x="150" y="120" width="76" height="20" rx="4" fill="#EFEBE4" stroke="#D2CCC2"/>
+              <rect x="30" y="40" width="14" height="120" rx="3" fill="#EFEBE4" stroke="#D2CCC2"/>
+              <circle cx="110" cy="96" r="62" fill="rgba(23,25,27,.07)" stroke="#17191B" stroke-dasharray="4 4"/>
+              <line x1="86" y1="72" x2="126" y2="86" stroke="#17191B" stroke-width="1.5"/>
+              <line x1="96" y1="128" x2="120" y2="112" stroke="#17191B" stroke-width="1.5" stroke-dasharray="3 3"/>
+              <circle cx="86" cy="72" r="7" fill="#17191B"/><text x="86" y="60" font-size="9" text-anchor="middle" fill="#17191B">阿禾</text>
+              <circle cx="126" cy="86" r="7" fill="#17191B"/><text x="126" y="74" font-size="9" text-anchor="middle" fill="#17191B">你</text>
+              <circle cx="96" cy="128" r="7" fill="#667075"/><text x="96" y="146" font-size="9" text-anchor="middle" fill="#667075">柯掌柜</text>
+              <circle cx="120" cy="112" r="7" fill="#667075"/><text x="132" y="118" font-size="9" text-anchor="middle" fill="#667075">老陈</text>
+              <circle cx="200" cy="56" r="7" fill="#EFEBE4" stroke="#D2CCC2"/><text x="200" y="44" font-size="9" text-anchor="middle" fill="#D2CCC2">柳三娘</text>
+              <text x="130" y="188" font-size="9" text-anchor="middle" fill="#667075">圈外不画 · 不代表无人</text>
+            </svg>
+            <div class="legend" style="margin-top:10px;font-size:11px">
+              <span><i style="background:#17191B"></i>可辨</span>
+              <span><i style="background:#667075"></i>听不清</span>
+              <span><i style="background:#EFEBE4;border:1px solid #D2CCC2"></i>不在范围</span>
+            </div>
+            <div class="inline br" style="margin-top:10px;font-size:12px"><div><b>移动不依赖展开</b><span>展开可点选落点；收起可用指令或「走近某人」。两套入口写同一个移动意图（UNR-E04 待拍板）。</span></div></div>
+          </div>
+        </div>
+        <div class="app-inp"><div class="inputline"><textarea class="tx" style="min-height:40px">观察或发言……</textarea><button class="btn secondary" style="height:40px">走近某人</button><button class="btn primary" style="height:40px">发送</button></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 7 人物 关系 动态 -->
+<section class="sec reveal" id="s7">
+  <h2>7 · 人物 · 关系 · 动态</h2>
+  <p class="lead">名册、名片、单人动态、聚合流、关系视图。聚合页与单人页必须使用同一份数据。</p>
+  <div class="grid2">
+    <div class="frame">
+      <div class="cap"><b>UIX-25 NPC 名片</b><span>只读与可编辑可区分</span></div>
+      <div class="app" style="height:440px">
+        <div class="app-main">
+          <div class="app-top"><div class="nm">人物</div><div class="sp"></div><span class="chip neutral" style="height:20px"><span class="dot"></span>只读</span></div>
+          <div class="app-body scroll">
+            <div class="row" style="align-items:flex-start;gap:14px">
+              <span class="av b64">陈</span>
+              <div style="flex:1">
+                <div style="font-size:20px;font-weight:600">老陈</div>
+                <div style="font-size:13px;color:#667075">码头搬运工 · 灰烬港</div>
+                <div class="row tight" style="margin-top:8px"><span class="chip neutral" style="height:20px"><span class="dot"></span>在忙</span><span class="tag">自建</span></div>
+              </div>
+            </div>
+            <div style="margin-top:16px">
+              <div class="acc"><div class="h">身份与外观<em>可编辑</em></div><div class="c">五十上下，左手缺一指。常年穿灰褐短褂。</div></div>
+              <div class="acc"><div class="h">背景</div><div class="c">三十年前那场火里失去了妻女，此后一直在码头做工。</div></div>
+              <div class="acc"><div class="h">性格与目标<em>可编辑</em></div><div class="c">寡言、记账式地记仇。目标：找回当年那份船单。</div></div>
+              <div class="acc"><div class="h">说话方式</div><div class="c">短句，不解释动机，被追问时会转移话题。</div></div>
+              <div class="acc"><div class="h">可见动态</div><div class="c">「灯灭之前，把门闩上。」— 3 小时前</div></div>
+              <div class="acc"><div class="h">你们的关系<em>描述</em></div><div class="c">敬重，但不亲近。信任 ↑ 于「归还信件」。</div></div>
+            </div>
+          </div>
+          <div class="app-inp"><div class="row"><button class="btn primary" style="flex:1">私聊</button><button class="btn secondary" style="flex:1">送礼</button><button class="btn secondary" style="flex:1">加入群聊</button></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="frame">
+      <div class="cap"><b>UIX-27 动态聚合流</b><span>与单人页同一份数据</span></div>
+      <div class="app" style="height:440px">
+        <div class="app-main">
+          <div class="app-top"><div class="nm">世界动态</div><div class="sp"></div><span class="seg"><span class="on">全部</span><span>与我有关</span></span></div>
+          <div class="app-body scroll">
+            <div class="card" style="margin-bottom:12px;padding:16px">
+              <div class="row" style="gap:10px"><span class="av b32">阿</span><b style="font-size:14px">阿禾</b><span style="font-size:12px;color:#667075">3 小时前 · 码头</span></div>
+              <p style="margin:8px 0 0;font-size:14.5px">那把刀我收下了。别再提了。</p>
+              <div class="row tight" style="margin-top:10px"><span class="chip" style="height:22px">回应</span><span class="chip" style="height:22px">转入私聊</span><span style="font-size:12px;color:#667075">可见：在场者</span></div>
+            </div>
+            <div class="card" style="margin-bottom:12px;padding:16px">
+              <div class="row" style="gap:10px"><span class="av b32">柳</span><b style="font-size:14px">柳三娘</b><span style="font-size:12px;color:#667075">5 小时前 · 酒馆</span></div>
+              <p style="margin:8px 0 0;font-size:14.5px">今夜的酒淡了些，怕是要下雨。</p>
+              <div class="row tight" style="margin-top:10px"><span class="chip" style="height:22px">回应</span><span style="font-size:12px;color:#667075">可见：所有人</span></div>
+            </div>
+            <div class="card" style="padding:16px;background:var(--bg-sunken)">
+              <div class="row" style="gap:10px"><span class="av b32">闻</span><b style="font-size:14px">闻九</b><span style="font-size:12px;color:#667075">昨日</span></div>
+              <p style="margin:8px 0 0;font-size:14px;color:#667075">这条动态你不在受众内，因此不显示内容。<span style="color:#A83B32">（示意：真实界面完全不渲染）</span></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="frame" style="margin-top:16px">
+    <div class="cap"><b>UIX-29 关系视图</b><span>列表为主，图为辅 · 不出数值</span></div>
+    <div class="app" style="height:420px">
+      <div class="app-main">
+        <div class="app-top"><div class="nm">关系</div><div class="sp"></div><span class="seg"><span class="on">列表</span><span>关系图</span></span><span class="input" style="height:32px;min-width:150px;font-size:13px"><span class="ph">搜索人物</span></span></div>
+        <div class="app-body" style="padding:0;display:flex">
+          <div style="flex:1;padding:8px 12px">
+            <div class="li"><span class="av b32">陈</span><div class="t"><b>老陈 ⇄ 你</b><span>他 → 你：敬重，但不亲近｜你 → 他：信任，仍在试探</span></div><div class="rt">信任 ↑<br><span style="font-size:11px">查看依据</span></div></div>
+            <div class="li"><span class="av b32">阿</span><div class="t"><b>阿禾 ⇄ 你</b><span>她 → 你：欠一份人情｜你 → 她：好奇</span></div><div class="rt">—</div></div>
+            <div class="li"><span class="av b32">柯</span><div class="t"><b>柯掌柜 ⇄ 老陈</b><span>掌柜 → 老陈：不信任｜老陈 → 掌柜：表面恭敬</span></div><div class="rt">熟悉度 ↑</div></div>
+            <div class="li"><span class="av b32">柳</span><div class="t"><b>柳三娘 ⇄ 阿禾</b><span>相互照应</span></div><div class="rt">—</div></div>
+          </div>
+          <div style="width:320px;flex:0 0 320px;border-left:1px solid #E3DED6;background:#FBFAF8;padding:14px">
+            <b style="font-size:13px">关系图（桌面）</b>
+            <svg class="mini" viewBox="0 0 260 200" style="margin-top:8px">
+              <rect width="260" height="200" fill="#FFFFFF"/>
+              <line x1="70" y1="60" x2="150" y2="100" stroke="#17191B" stroke-width="3"/>
+              <line x1="150" y1="100" x2="196" y2="62" stroke="#8A6A1F" stroke-width="1.5"/>
+              <line x1="150" y1="100" x2="120" y2="158" stroke="#667075" stroke-width="1.5"/>
+              <line x1="70" y1="60" x2="196" y2="62" stroke="#D2CCC2" stroke-width="1"/>
+              <circle cx="70" cy="60" r="18" fill="#F1EFEA" stroke="#17191B"/><text x="70" y="64" font-size="10" text-anchor="middle" fill="#17191B">老陈</text>
+              <circle cx="150" cy="100" r="18" fill="#17191B"/><text x="150" y="104" font-size="10" text-anchor="middle" fill="#fff">你</text>
+              <circle cx="196" cy="62" r="18" fill="#F4F1EC" stroke="#8A6A1F"/><text x="196" y="66" font-size="10" text-anchor="middle" fill="#17191B">掌柜</text>
+              <circle cx="120" cy="158" r="18" fill="#F4F1EC" stroke="#667075"/><text x="120" y="162" font-size="10" text-anchor="middle" fill="#17191B">阿禾</text>
+              <text x="130" y="190" font-size="9" text-anchor="middle" fill="#667075">连线粗细＝熟悉度，不标注数字 · 图不可用时给文本替代</text>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 8 世界与创作 -->
+<section class="sec reveal" id="s8">
+  <h2>8 · 世界与创作</h2>
+  <p class="lead">世界详情（衬线标题 + 七类设定折叠）、创建编辑（分步/分栏）、身份选择、NPC 编辑、规则与冲突检视。</p>
+  <div class="grid2">
+    <div class="frame">
+      <div class="cap"><b>UIX-33 世界详情</b><span>模板与运行存档区分</span></div>
+      <div class="app" style="height:460px">
+        <div class="app-main">
+          <div class="app-top"><div class="nm">世界</div><div class="sp"></div><span class="tag">奇幻</span><span class="tag">v3.2</span><span class="chip neutral" style="height:20px"><span class="dot"></span>运行存档</span></div>
+          <div class="app-body scroll">
+            <div style="font-family:var(--font-serif);font-size:24px;font-weight:600">灰烬港的最后一夜</div>
+            <div style="font-size:13px;color:#667075;margin:4px 0 14px">题材：低魔 · 港口　｜　派生自《灰烬港》　｜　开局钩子：一封没署名的船单</div>
+            <div class="acc"><div class="h">起源与力量<em>来源：作者</em></div><div class="c">火熄灭之后，灰里剩下会说话的东西。</div></div>
+            <div class="acc"><div class="h">地理<em>来源：作者</em></div><div class="c">半座城沉在海里，剩下的一半靠码头活着。</div></div>
+            <div class="acc"><div class="h">种族<em>来源：AI 生成</em></div><div class="c">灰民、海裔、外来旅人。</div></div>
+            <div class="acc"><div class="h">势力<em>来源：作者</em></div><div class="c">码头行会 / 守夜人 / 灰商。</div></div>
+            <div class="acc"><div class="h">年表<em>来源：作者</em></div><div class="c">三十年前大火 → 十年前封港 → 三日前船单失踪。</div></div>
+            <div class="acc"><div class="h">重要角色<em>7 位</em></div><div class="c">老陈、阿禾、柯掌柜、柳三娘……</div></div>
+          </div>
+          <div class="app-inp"><div class="row"><button class="btn primary" style="flex:1">进入世界</button><button class="btn secondary">另存为副本</button><button class="btn secondary">编辑</button></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="frame">
+      <div class="cap"><b>UIX-35 身份选择</b><span>两种身份差异可辨</span></div>
+      <div class="app" style="height:460px">
+        <div class="app-main">
+          <div class="app-top"><div class="nm">选择你的身份</div><div class="sp"></div><span style="font-size:12px;color:#667075">第 2 / 4 步</span></div>
+          <div class="app-body scroll">
+            <div class="card" style="border-color:#17191B;background:var(--brand-soft);margin-bottom:12px">
+              <div class="row" style="justify-content:space-between"><h4>以旅人进入</h4><span class="chip brand" style="height:20px"><span class="dot"></span>推荐</span></div>
+              <p>你来自世界之外。NPC 会按"外来者"理解你，开场更简单。</p>
+            </div>
+            <div class="card" style="margin-bottom:12px">
+              <h4>设定世界内身份</h4>
+              <p>填写姓名、来历、与谁相识。NPC 会按这个身份认识你，开场更具体。</p>
+            </div>
+            <div class="fld"><label>姓名</label><div class="input"><span class="ph">阿默</span></div></div>
+            <div class="fld" style="margin-top:12px"><label>来历（NPC 可见）</label><textarea class="tx" style="min-height:60px">从内陆来，找一张三十年前的船单。</textarea><div class="help">只有当前身份里允许 NPC 知道的字段会进入对话</div></div>
+            <div class="row tight" style="margin-top:12px;font-size:13px"><span class="sw2 on"><i></i></span><span>复制我的资料卡</span></div>
+            <div class="inline" style="margin-top:12px"><div><b>换一个世界的身份，不会改掉其他世界里的你</b><span>跨世界资料与局内身份相互独立。</span></div></div>
+          </div>
+          <div class="app-inp"><div class="row"><button class="btn secondary">上一步</button><div style="flex:1"></div><button class="btn primary">下一步</button></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="frame" style="margin-top:16px">
+    <div class="cap"><b>UIX-37 / UIX-38 规则与提示词 · 冲突检视</b><span>安全边界不可覆盖</span></div>
+    <div class="app" style="height:420px">
+      <div class="app-main">
+        <div class="app-top"><div class="nm">规则</div><div class="sp"></div><span class="input" style="height:32px;min-width:170px;font-size:13px"><span class="ph">搜索规则</span></span><button class="btn primary sm">新建规则</button></div>
+        <div class="app-body" style="padding:0;display:flex">
+          <div style="flex:1;padding:12px">
+            <table>
+              <tr><th>名称</th><th>作用域</th><th>状态</th><th>版本</th><th>生效来源</th></tr>
+              <tr><td>禁止剧透未来</td><td><span class="tag">全局</span></td><td><span class="sw2 on" style="vertical-align:middle"><i></i></span> 启用</td><td><code>v2</code></td><td>本世界</td></tr>
+              <tr><td>老陈不说脏话</td><td><span class="tag">单个 NPC<b>老陈</b></span></td><td><span class="sw2 on" style="vertical-align:middle"><i></i></span> 启用</td><td><code>v1</code></td><td>本世界</td></tr>
+              <tr><td>码头三人组口音</td><td><span class="tag">多个 NPC<b>3</b></span></td><td><span class="sw2" style="vertical-align:middle"><i></i></span> 停用</td><td><code>v4</code></td><td>导入包</td></tr>
+              <tr><td style="color:#A83B32">忽略安全限制</td><td><span class="tag">全局</span></td><td><span class="chip danger" style="height:20px"><span class="dot"></span>已拒绝</span></td><td>—</td><td>本世界</td></tr>
+            </table>
+            <div class="inline dg" style="margin-top:12px"><div><b>这条规则试图覆盖安全边界，不会被采用</b><span>安全边界不能被用户、世界包、角色包或临时消息覆盖。</span></div></div>
+          </div>
+          <div style="width:340px;flex:0 0 340px;border-left:1px solid #E3DED6;background:#FBFAF8;padding:14px">
+            <b style="font-size:13px">冲突检视（桌面）</b>
+            <div class="conflict" style="margin-top:10px">
+              <div class="side-a"><div class="lbl">规则 A · 本世界</div>「老陈说话简短」</div>
+              <div class="side-b"><div class="lbl">规则 B · 导入包</div>「老陈会详细解释」</div>
+            </div>
+            <div class="card" style="margin-top:10px;padding:12px">
+              <div class="lbl" style="font-size:11px;color:#667075">实际生效</div>
+              <div style="font-size:13px">采用 A（本世界优先于导入包）</div>
+            </div>
+            <p class="note">导入的角色提示词不可读取密钥、不可执行本地命令。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 9 礼物与事务 -->
+<section class="sec reveal" id="s9">
+  <h2>9 · 礼物与事务一致性</h2>
+  <p class="lead">点击「赠送」只是表达意图。送达、接受、拒绝、取消是分开的状态，确认之后才结算。</p>
+  <div class="grid3">
+    <div class="card">
+      <div class="plabel">① 选择（UIX-39）</div>
+      <div class="row tight" style="margin-bottom:10px"><span class="tag">信物</span><span class="tag">酒</span><span class="tag">刀</span></div>
+      <div class="li" style="padding:10px;border:1px solid #17191B;border-radius:10px;background:var(--bg-sunken)"><span class="av b32">刀</span><div class="t"><div class="row tight" style="gap:6px;align-items:baseline"><b style="font-size:17px;font-weight:600">短刀</b><span class="tag" style="height:20px">×1</span></div><span style="font-size:12px">来源：码头所得</span></div></div>
+      <div class="li" style="padding:10px"><span class="av b32">酒</span><div class="t"><div class="row tight" style="gap:6px;align-items:baseline"><b style="font-size:17px;font-weight:600">劣酒</b><span class="tag" style="height:20px">×2</span></div><span style="font-size:12px">来源：酒馆</span></div></div>
+      <div class="li" style="padding:10px;opacity:.5"><span class="av b32">灯</span><div class="t"><div class="row tight" style="gap:6px;align-items:baseline"><b style="font-size:17px;font-weight:600">铜灯</b><span class="tag" style="height:20px">×0</span></div><span style="font-size:12px">数量不足，不可赠送</span></div></div>
+    </div>
+    <div class="card">
+      <div class="plabel">② 确认卡（UIX-40）</div>
+      <div style="text-align:center;padding:8px 0 12px">
+        <div style="font-size:13px;color:#667075">送给</div>
+        <div style="font-size:17px;font-weight:600;margin:2px 0">老陈</div>
+        <div style="margin-top:8px"><div style="font-size:21px;font-weight:600;letter-spacing:-.01em">短刀</div><span class="tag" style="margin-top:5px">数量 ×1</span></div>
+      </div>
+      <div class="inline br"><div><b>这只是表达意图</b><span>确认后才会结算；现在可以取消。</span></div></div>
+      <div class="row" style="margin-top:12px"><button class="btn secondary" style="flex:1">取消</button><button class="btn primary" style="flex:1">确认赠送</button></div>
+    </div>
+    <div class="card">
+      <div class="plabel">③ 结果（UIX-41）</div>
+      <div class="tl" style="padding-left:16px">
+        <div class="it"><div class="tt">20:14:02</div><b>意图已表达</b><p>待确认 <span class="chip dashed" style="height:18px;font-size:11px">待确认</span></p></div>
+        <div class="it"><div class="tt">20:14:03</div><b>执行中</b><p>处理中 <span class="chip brand" style="height:18px;font-size:11px">处理中</span></p></div>
+        <div class="it"><div class="tt">20:14:05</div><b>已确认</b><p>老陈收下了，评价依据他的性格而非统一加分 <span class="chip success" style="height:18px;font-size:11px">已确认</span></p></div>
+      </div>
+      <div class="inline dg" style="margin-top:10px"><div><b>重试只重试表达</b><span>失败不重复扣减、不重复改变关系。</span></div></div>
+    </div>
+  </div>
+  <div class="frame" style="margin-top:16px">
+    <div class="cap"><b>UIX-42 礼物与道具流水</b><span>可追到原事件</span></div>
+    <div class="app" style="height:300px">
+      <div class="app-main">
+        <div class="app-top"><div class="nm">礼物流水</div><div class="sp"></div><span class="seg"><span class="on">全部</span><span>我送出</span><span>NPC 之间</span></span></div>
+        <div class="app-body" style="padding:0">
+          <table>
+            <tr><th>时间</th><th>谁 → 谁</th><th>物品</th><th>结果</th><th>后续</th><th></th></tr>
+            <tr><td><code>10-09 20:14</code></td><td>你 → 老陈</td><td>短刀 ×1</td><td><span class="chip success" style="height:20px"><span class="dot"></span>已确认</span></td><td>信任 ↑</td><td><button class="btn text sm">回到原会话</button></td></tr>
+            <tr><td><code>10-08 21:02</code></td><td>阿禾 → 你</td><td>干粮 ×2</td><td><span class="chip success" style="height:20px"><span class="dot"></span>已确认</span></td><td>欠一份人情</td><td><button class="btn text sm">回到原会话</button></td></tr>
+            <tr><td><code>10-07 19:30</code></td><td>你 → 柯掌柜</td><td>劣酒 ×1</td><td><span class="chip neutral" style="height:20px"><span class="dot"></span>被拒绝</span></td><td>他不收外人的酒</td><td><button class="btn text sm">回到原会话</button></td></tr>
+            <tr><td><code>10-06 22:11</code></td><td>柳三娘 → 阿禾</td><td>灯油 ×1</td><td><span class="chip danger" style="height:20px"><span class="dot"></span>未完成</span></td><td>未扣减</td><td><button class="btn text sm">查看错误</button></td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 10 记录 简报 广场 -->
+<section class="sec reveal" id="s10">
+  <h2>10 · 记录 · 简报 · 广场</h2>
+  <p class="lead">纪事、承诺线索、进入世界简报、社区广场与混搭冲突确认。</p>
+  <div class="grid2">
+    <div class="frame">
+      <div class="cap"><b>UIX-52 / UIX-54 纪事与承诺</b><span>可回到原会话</span></div>
+      <div class="app" style="height:440px">
+        <div class="app-main">
+          <div class="app-top"><div class="nm">纪事</div><div class="sp"></div><span class="seg"><span class="on">时间线</span><span>承诺与线索</span></span></div>
+          <div class="app-body scroll">
+            <div class="tl">
+              <div class="it"><div class="tt">10-09 20:14 · 暮时 第三日</div><b>归还那封信</b><p>参与者：你、老陈　地点：酒馆后门<br>结果：信任 ↑　<b style="font-weight:500">后续：他提起船单</b></p><div class="row tight" style="margin-top:6px"><button class="btn text sm">回到原会话</button><button class="btn text sm">查看依据</button></div></div>
+              <div class="it"><div class="tt">10-08 21:02 · 夜 第二日</div><b>收下干粮</b><p>参与者：你、阿禾　地点：码头<br>结果：欠一份人情</p><div class="row tight" style="margin-top:6px"><button class="btn text sm">回到原会话</button></div></div>
+              <div class="it"><div class="tt">10-07 19:58 · 夜 第一日</div><b>酒馆初见</b><p>参与者：你、老陈、阿禾、柯掌柜　地点：码头酒馆<br>结果：熟悉度 ↑</p><div class="row tight" style="margin-top:6px"><button class="btn text sm">回到原会话</button></div></div>
+            </div>
+            <div class="inline" style="margin-top:8px"><div><b>未完成承诺置顶</b><span>「查清船单下落」— 与老陈，第三日到期</span></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="frame">
+      <div class="cap"><b>UIX-56 进入世界简报</b><span>只含可知信息，不是全知视角</span></div>
+      <div class="app" style="height:440px">
+        <div class="app-main">
+          <div class="app-top"><div class="nm">回到灰烬港</div><div class="sp"></div><span style="font-size:12px;color:#667075">可关闭</span></div>
+          <div class="app-body scroll">
+            <div style="font-size:13px;color:#667075">你离开了 6 小时 12 分 · 世界按现实时间继续</div>
+            <div class="card" style="margin-top:12px">
+              <h4>公开大事</h4><p>守夜人换了班次；码头货栈失窃三箱。</p>
+            </div>
+            <div class="card" style="margin-top:12px">
+              <h4>你能够知道的变化</h4><p>老陈去过一趟货栈；阿禾在酒馆留了一句话给你。</p>
+            </div>
+            <div class="card" style="margin-top:12px">
+              <h4>与你有联系的人</h4><p>老陈：承诺「查清船单下落」仍未完成。<br>阿禾：昨日找过你。</p>
+            </div>
+            <div class="inline" style="margin-top:12px"><div><b>不含</b><span>你不在场时的私密对话、NPC 的隐藏想法、全知视角叙述。</span></div></div>
+          </div>
+          <div class="app-inp"><div class="row"><button class="btn primary" style="flex:1">进入世界</button><button class="btn secondary">关闭</button></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="frame" style="margin-top:16px">
+    <div class="cap"><b>UIX-61 混搭差异确认</b><span>不静默合并 · 原作不变</span></div>
+    <div class="app" style="height:440px">
+      <div class="app-main">
+        <div class="app-top"><div class="nm">合并《灰烬港》与《雾城》</div><div class="sp"></div><span class="chip warn" style="height:20px"><span class="dot"></span>5 项冲突待确认</span></div>
+        <div class="app-body scroll" style="padding:12px">
+          <div class="card" style="padding:12px;margin-bottom:10px">
+            <div style="font-size:13px;font-weight:600;margin-bottom:8px">字段冲突 · 角色「老陈」年龄</div>
+            <div class="conflict">
+              <div class="side-a"><div class="lbl">A · 灰烬港</div>五十上下</div>
+              <div class="side-b"><div class="lbl">B · 雾城</div>三十七</div>
+            </div>
+            <div class="row tight" style="margin-top:8px"><span class="seg"><span class="on">保留 A</span><span>保留 B</span><span>都保留并改名</span></span></div>
+          </div>
+          <div class="card" style="padding:12px;margin-bottom:10px">
+            <div style="font-size:13px;font-weight:600;margin-bottom:8px">命名冲突 · 地点「北码头」</div>
+            <div class="conflict">
+              <div class="side-a"><div class="lbl">A · 灰烬港</div>北码头（货运）</div>
+              <div class="side-b"><div class="lbl">B · 雾城</div>北码头（渔港）</div>
+            </div>
+            <div class="row tight" style="margin-top:8px"><span class="seg"><span>保留 A</span><span>保留 B</span><span class="on">都保留并改名</span></span></div>
+          </div>
+          <div class="card" style="padding:12px;background:var(--bg-sunken)">
+            <div style="font-size:13px;font-weight:600;margin-bottom:6px">授权冲突 · 未声明许可</div>
+            <p style="font-size:13px;color:#454A4E">来源包未携带改编许可，无法合并后发布。仍可在本地合并使用。</p>
+          </div>
+          <div class="inline" style="margin-top:12px"><div><b>原作不会被修改</b><span>确认后生成派生世界，来源映射一并写入。</span></div></div>
+        </div>
+        <div class="app-inp"><div class="row"><button class="btn secondary">取消</button><div style="flex:1"></div><button class="btn primary">生成派生世界</button></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 11 设置与错误 -->
+<section class="sec reveal" id="s11">
+  <h2>11 · 设置与系统错误</h2>
+  <p class="lead">BYOK 配置、隐私与删除、统一错误弹窗家族。</p>
+  <div class="grid2">
+    <div class="frame">
+      <div class="cap"><b>UIX-05 / UIX-50 模型与 API</b><span>无 Key 路径不被拦截</span></div>
+      <div class="app" style="height:420px">
+        <div class="app-main">
+          <div class="app-top"><div class="nm">模型与 API</div><div class="sp"></div><span class="chip success" style="height:20px"><span class="dot"></span>已配置</span></div>
+          <div class="app-body scroll">
+            <div class="fld"><label>服务商</label><div class="input">OpenAI<span style="margin-left:auto;color:#667075">▾</span></div></div>
+            <div class="fld" style="margin-top:14px"><label>API 密钥</label><div class="input mono">sk-••••••••3f7a<span style="margin-left:auto;font-size:12px;color:#667075">显示</span></div><div class="help">密钥遮蔽存储，日志脱敏，作品包与备份排除秘密</div></div>
+            <div class="row tight" style="margin-top:12px"><button class="btn secondary sm">测试连接</button><button class="btn text sm">撤销授权</button></div>
+            <div class="inline br" style="margin-top:14px"><div><b>本次生成将发送至</b><span>OpenAI · api.openai.com（此说明常驻，不可折叠）</span></div></div>
+            <div class="acc" style="margin-top:14px"><div class="h">本地模型（Ollama）<em>无需 Key</em></div><div class="c">无密钥路径不会被"缺少 API Key"的全局提示拦住。</div></div>
+            <div class="inline" style="margin-top:12px"><div><b>未配置模型时</b><span>可编辑世界与人物、查看记录，或使用演示 / 规则级推进，并明确标注与真实生成的区别。</span></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="frame">
+      <div class="cap"><b>UIX-06 系统错误弹窗家族</b><span>统一话术 · 错误码可复制 · 去重不刷屏</span></div>
+      <div class="app" style="height:420px;background:var(--bg-sunken);align-items:center;justify-content:center;padding:20px">
+        <div style="width:100%;max-width:400px">
+          <div class="mask">
+            <div class="hd" style="color:#A83B32"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="#A83B32" stroke-width="1.6"><circle cx="9" cy="9" r="7.2"/><path d="M9 5.4v4.2M9 12.3v.6"/></svg>请求失败</div>
+            <div class="bd">模型服务未返回。本次内容没有生成，也没有改动任何状态。<br><span style="display:block;margin-top:8px;font-size:13px;color:#667075">影响范围：本局 · 灰烬港的最后一夜</span><br><span class="code" style="margin-top:8px">ERR-MODEL-429</span></div>
+            <div class="ft"><button class="btn text sm">复制错误码</button><button class="btn secondary sm">查看状态</button><button class="btn primary sm">重试</button></div>
+          </div>
+          <div class="card" style="margin-top:14px">
+            <div class="plabel">与角色行为的区分</div>
+            <div class="kv"><span>系统侧</span><b>统一弹窗 + 红色 + 错误码</b></div>
+            <div class="kv"><span>角色侧（拒绝/忙碌/缺席）</span><b>中性灰 + 叙述体 + 给替代下一步</b></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="grid2" style="margin-top:16px">
+    <div class="card">
+      <div class="plabel">UIX-08 删除范围必须可区分</div>
+      <div class="mask" style="box-shadow:none;max-width:none;margin-top:6px">
+        <div class="hd">删除这一局？</div>
+        <div class="bd">只删除「灰烬港的最后一夜」的运行存档，账号与其他世界不受影响。<div class="impact" style="margin-top:10px"><div><span>运行存档</span><b>1 个</b></div><div><span>事件与流水</span><b>132 条</b></div><div><span>已发布作品</span><b>不受影响</b></div></div><div class="inline dg" style="margin-top:10px"><div><b>不可恢复</b><span>删除后无法找回。</span></div></div></div>
+        <div class="ft"><button class="btn secondary sm">取消</button><button class="btn danger sm">删除这一局</button></div>
+      </div>
+      <p class="note">删账号 / 只删一局 / 只删作品：三者在视觉与文案上完全不同。</p>
+    </div>
+    <div class="card">
+      <div class="plabel">UIX-65 存档与快照</div>
+      <div class="li" style="padding:8px 0"><div class="t"><b>自动保存 · 20:14</b><span>保存成功</span></div><div class="rt"><span class="chip success" style="height:20px"><span class="dot"></span>已保存</span></div></div>
+      <div class="li" style="padding:8px 0"><div class="t"><b>手动快照 · 10-08 21:00</b><span>进入酒馆前</span></div><div class="rt"><button class="btn text sm">恢复</button></div></div>
+      <div class="li" style="padding:8px 0"><div class="t"><b>手动快照 · 10-07 19:00</b><span>开局</span></div><div class="rt"><button class="btn text sm">恢复</button></div></div>
+      <div class="inline" style="margin-top:10px"><div><b>恢复不会把已送出的礼物再复制一份</b><span>已确认事件不会重复结算。</span></div></div>
+      <div class="inline dg" style="margin-top:8px"><div><b>保存失败必须看得见</b><span>不能把"内存里改过了"显示成"已经保存"。</span></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 12 移动端 -->
+<section class="sec reveal" id="s12">
+  <h2>12 · 移动端</h2>
+  <p class="lead">单列任务栈 + 底部导航 56px。同一任务两端都能完成，布局不同但完成率都要达标。</p>
+  <div class="row" style="gap:20px;align-items:flex-start">
+    <div class="phone">
+      <div class="p-top"><span class="av b24">我</span><div>会话</div><div style="flex:1"></div><span style="font-size:12px;color:#667075">灰烬港 · 旅人</span></div>
+      <div class="p-body" style="padding:0">
+        <div class="li on" style="border-radius:0"><span class="av b40">陈<span class="st gen"></span></span><div class="t"><b>老陈</b><span>正在生成……</span></div><div class="rt">刚刚</div></div>
+        <div class="li" style="border-radius:0"><span class="av b40">阿</span><div class="t"><b>阿禾</b><span>那把刀我收下了，别再提。</span></div><div class="rt">3 分钟前</div></div>
+        <div class="li" style="border-radius:0"><span class="av b40">柯<span class="st busy"></span></span><div class="t"><b>柯掌柜</b><span>在忙</span></div><div class="rt">12:40</div></div>
+        <div class="li" style="border-radius:0"><span class="av b40">七</span><div class="t"><b>码头酒馆 · 夜</b><span>阿禾：谁把灯吹了？</span></div><div class="rt">19:58</div></div>
+        <div class="li" style="border-radius:0"><span class="av b40">柳<span class="st absent"></span></span><div class="t"><b>柳三娘</b><span>缺席</span></div><div class="rt">昨日</div></div>
+      </div>
+      <div class="p-nav"><div class="on"><i></i>对话</div><div><i></i>世界</div><div><i></i>我的</div></div>
+    </div>
+
+    <div class="phone">
+      <div class="p-top"><span class="av b24">陈</span><div>老陈</div><div style="flex:1"></div><span class="chip brand" style="height:18px;font-size:11px"><span class="dot"></span>生成中</span></div>
+      <div class="p-body">
+        <div class="sysline" style="font-size:11.5px">10-09 19:40 · 酒馆后门</div>
+        <div class="msg"><span class="av b32">陈</span><div class="bub npc" style="font-size:14px">你又来了。上次那封信，我还留着。</div></div>
+        <div class="msg me"><span class="av b32">我</span><div class="bub me" style="font-size:14px">我是来还东西的，不是来讨人情的。</div></div>
+        <div class="msg"><span class="av b32">陈</span><div class="bub npc" style="font-size:14px">……好。那我记下了。</div></div>
+        <div class="sysline" style="font-size:11.5px">信任 ↑</div>
+        <div class="actbar" style="justify-content:center"><button class="btn secondary sm">停止生成</button></div>
+      </div>
+      <div style="border-top:1px solid #E3DED6;padding:8px 12px">
+        <div class="actbar" style="gap:6px"><span class="chip" style="height:22px">送礼</span><span class="chip" style="height:22px">邀请</span><span class="chip" style="height:22px">承诺</span><span class="chip dashed" style="height:22px">+</span></div>
+        <div class="inputline" style="margin-top:8px"><textarea class="tx" style="min-height:38px;font-size:14px">说点什么……</textarea><button class="btn primary" style="height:38px;width:44px;padding:0">↑</button></div>
+      </div>
+      <div class="p-nav"><div class="on"><i></i>对话</div><div><i></i>世界</div><div><i></i>我的</div></div>
+    </div>
+
+    <div class="phone">
+      <div class="p-top"><div>码头酒馆 · 夜</div><div style="flex:1"></div><span class="chip neutral" style="height:18px;font-size:11px"><span class="dot"></span>在场 5</span></div>
+      <div class="p-body" style="padding:10px">
+        <div class="card" style="padding:10px;background:var(--bg-sunken)">
+          <div class="row" style="justify-content:space-between"><b style="font-size:13px">俯视小窗</b><span style="font-size:12px;color:#667075">展开 ▾</span></div>
+          <p class="note" style="margin:6px 0 0">默认收起；展开占屏高 ≤40%，不遮挡输入区。</p>
+        </div>
+        <div class="msg" style="margin-top:12px"><span class="av b32">阿</span><div class="bub npc" style="font-size:14px">谁把灯吹了？</div></div>
+        <div class="msg"><span class="av b32">柯</span><div class="bub npc fuzzy" style="font-size:13.5px">……（吧台那边杯响，听不清）<span class="corner">听不清</span></div></div>
+        <div class="sysline" style="font-size:11.5px">老陈起身走向门口</div>
+        <div class="inline br" style="margin-top:10px;font-size:12px"><div><b>收起也能移动</b><span>用指令「走近 老陈」或行动区的走近某人。</span></div></div>
+      </div>
+      <div style="border-top:1px solid #E3DED6;padding:8px 12px">
+        <div class="inputline"><textarea class="tx" style="min-height:38px;font-size:14px">观察或发言……</textarea><button class="btn primary" style="height:38px;width:44px;padding:0">↑</button></div>
+      </div>
+      <div class="p-nav"><div class="on"><i></i>对话</div><div><i></i>世界</div><div><i></i>我的</div></div>
+    </div>
+
+    <div class="phone">
+      <div class="p-top"><div>新建世界</div><div style="flex:1"></div><span style="font-size:12px;color:#667075">第 2 / 4 步</span></div>
+      <div class="p-body">
+        <div style="height:4px;background:#E3DED6;border-radius:4px"><span style="display:block;width:50%;height:4px;background:#17191B;border-radius:4px"></span></div>
+        <div style="font-size:12px;color:#667075;margin:8px 0 14px">身份</div>
+        <div class="card" style="border-color:#17191B;background:var(--brand-soft);margin-bottom:10px;padding:14px">
+          <b style="font-size:14px">以旅人进入</b><p style="font-size:13px;margin-top:4px">来自世界之外，NPC 按外来者理解你。</p>
+        </div>
+        <div class="card" style="padding:14px;margin-bottom:12px">
+          <b style="font-size:14px">设定世界内身份</b><p style="font-size:13px;margin-top:4px">填写姓名与来历，开场更具体。</p>
+        </div>
+        <div class="fld"><label>姓名</label><div class="input" style="height:38px"><span class="ph">阿默</span></div></div>
+        <div style="flex:1"></div>
+      </div>
+      <div style="border-top:1px solid #E3DED6;padding:10px 12px;display:flex;gap:8px"><button class="btn secondary" style="flex:1">上一步</button><button class="btn primary" style="flex:1">下一步</button></div>
+      <div class="p-nav"><div><i></i>对话</div><div class="on"><i></i>世界</div><div><i></i>我的</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 13 文案与无障碍 -->
+<section class="sec reveal" id="s13">
+  <h2>13 · 文案规范与无障碍</h2>
+  <p class="lead">同一操作同一说法；仅键盘可完成核心任务；对比度全部达到 AA。</p>
+  <div class="grid2">
+    <div class="panel">
+      <div class="plabel">用语词典</div>
+      <table>
+        <tr><th>用这个</th><th>不用这个</th><th>原因</th></tr>
+        <tr><td><code>删除</code></td><td>移除、清除</td><td>同一动作同一说法</td></tr>
+        <tr><td><code>撤销</code></td><td>回退、反悔</td><td>撤销 = 未提交的操作</td></tr>
+        <tr><td><code>恢复（存档）</code></td><td>回滚、还原</td><td>回滚语义更强</td></tr>
+        <tr><td><code>已确认</code></td><td>成功、搞定</td><td>事务语义</td></tr>
+        <tr><td><code>被拒绝</code></td><td>失败（红）</td><td>拒绝是角色侧，中性</td></tr>
+        <tr><td><code>在忙 / 缺席</code></td><td>离线、隐身</td><td>角色没有在线状态</td></tr>
+        <tr><td><code>听不清</code></td><td>未知内容</td><td>用户能懂</td></tr>
+      </table>
+      <div class="plabel" style="margin-top:20px">句式规则</div>
+      <div class="col" style="font-size:14px;color:#454A4E">
+        <div>1. <b>主语明确</b>：「老陈没有回应」vs「请求失败（ERR-…）」，绝不模糊成"操作未完成"。</div>
+        <div>2. <b>给下一步</b>：每条错误 / 空态 / 拒绝后必须有一个可点击的行动。</div>
+        <div>3. <b>不拟人化系统</b>：系统提示不用第一人称，不用"哎呀"。</div>
+        <div>4. <b>不承诺未发生</b>：未保存前不写"已保存"。</div>
+        <div>5. <b>时间</b>：会话内用相对时间；纪事用绝对时间 + 世界内时间。</div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="plabel">无障碍检查项（WCAG 2.1 AA）</div>
+      <table>
+        <tr><th>项</th><th>要求</th></tr>
+        <tr><td>对比度</td><td>正文 ≥ 4.5:1，大字 ≥ 3:1，图形边界 ≥ 3:1 <span class="ok">全部达标</span></td></tr>
+        <tr><td>焦点可见</td><td>2px 墨青环 + 2px 偏移，禁止 <code>outline:none</code></td></tr>
+        <tr><td>键盘</td><td>登录、进入会话、送礼、确认、保存、提交作品均可仅键盘完成；Esc 关闭弹层并回焦</td></tr>
+        <tr><td>读屏</td><td>图标按钮有标签；状态 Chip 文字可朗读；关系图有文本替代；生成中 <code>aria-live</code></td></tr>
+        <tr><td>触控</td><td>可点区 ≥ 44×44，相邻 ≥ 8px；移动输入区不被软键盘遮挡</td></tr>
+        <tr><td>动效</td><td>遵守 <code>prefers-reduced-motion</code>；无闪烁</td></tr>
+        <tr><td>缩放</td><td>200% 文本不破版；无横向滚动（表格除外）</td></tr>
+        <tr><td>表单</td><td>错误用 <code>aria-describedby</code> 关联；必填写"必填"而非仅星号</td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- 14 交付与 QA -->
+<section class="sec reveal" id="s14">
+  <h2>14 · 交付与 Design QA</h2>
+  <p class="lead">每个界面过一遍检查表，全项通过才交付。</p>
+  <div class="grid2">
+    <div class="panel">
+      <div class="plabel">正确性</div>
+      <div class="col" style="font-size:14px;color:#454A4E">
+        <div>☐ 没有出现感知范围外、受众外、未授权的信息（连灰色占位都没有）</div>
+        <div>☐ 系统状态与角色状态在颜色、位置、文案主语上三重区分</div>
+        <div>☐ 事务五态齐全，且"被拒绝"不是红色</div>
+        <div>☐ 未确认前没有任何"已完成"的表达</div>
+        <div>☐ 关系界面没有任何数值、进度条、星级</div>
+      </div>
+      <div class="plabel" style="margin-top:20px">完整性</div>
+      <div class="col" style="font-size:14px;color:#454A4E">
+        <div>☐ 空 / 加载 / 错误 / 边界 四态稿齐全</div>
+        <div>☐ 每次操作都有 ≤1s 的可感知反馈</div>
+        <div>☐ 危险操作有二次确认，重要操作可撤销或可恢复</div>
+        <div>☐ 同一任务手机和桌面都能完成</div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="plabel">一致性与可用性</div>
+      <div class="col" style="font-size:14px;color:#454A4E">
+        <div>☐ 颜色、字号、间距全部来自令牌，无硬编码值</div>
+        <div>☐ 同一操作的名称与结果与其它界面一致</div>
+        <div>☐ 图标语义唯一，无两个图标表达同一件事</div>
+        <div>☐ 仅键盘可完成核心任务，焦点环可见</div>
+        <div>☐ 触控区 ≥44，对比度 ≥4.5:1</div>
+        <div>☐ 动效遵守 reduced-motion</div>
+      </div>
+      <div class="plabel" style="margin-top:20px">依赖 T19 · 不要做死的部分</div>
+      <table>
+        <tr><th>未决项</th><th>影响</th><th>当前保守设计</th></tr>
+        <tr><td><code>UNR-H01</code></td><td>三入口导航</td><td>待 6–8 人树测试；直达区做成可配置</td></tr>
+        <tr><td><code>UNR-H02</code></td><td>两端布局分工</td><td>手机单列 + 桌面多栏，不为桌面单独造功能</td></tr>
+        <tr><td><code>UNR-E04</code></td><td>移动是否依赖小窗展开</td><td>两套入口都做，状态回显一致</td></tr>
+        <tr><td><code>UNR-E05</code></td><td>小窗尺寸与层级</td><td>桌面 280–320 右栏，手机折叠 ≤40%</td></tr>
+        <tr><td><code>UNR-C04</code></td><td>好感显示方式</td><td>只出描述式，<b>不提供任何数值方案</b></td></tr>
+        <tr><td><code>UNR-F01</code></td><td>历史回滚</td><td><b>不提供该界面</b></td></tr>
+      </table>
+    </div>
+  </div>
+  <p class="note" style="margin-top:24px">本文档为静态预览，不含交互逻辑。颜色对比度为按 WCAG 公式计算值；感知半径等数值沿用 PRD 中标注为「待校准假设」的取值，不属于本规范结论。</p>
+</section>
+
+</main>
+</div>
+<script>
+  var links = document.querySelectorAll('.side a');
+  var secs = document.querySelectorAll('.sec');
+  function setActive(id){
+    links.forEach(function(a){ a.classList.toggle('on', a.getAttribute('href') === '#' + id); });
+  }
+  var obs = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){ if(e.isIntersecting){ setActive(e.target.id); } });
+  }, {rootMargin: '-10% 0px -80% 0px'});
+  secs.forEach(function(s){ obs.observe(s); });
+
+  // 滚动触发：进入视口时淡入上移，只触发一次
+  var rev = document.querySelectorAll('.reveal');
+  if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+    rev.forEach(function(el){ el.classList.add('in'); });
+  }else{
+    var ro = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if(e.isIntersecting){ e.target.classList.add('in'); ro.unobserve(e.target); }
+      });
+    }, {rootMargin:'0px 0px -8% 0px', threshold:0.06});
+    rev.forEach(function(el){ ro.observe(el); });
+    // 兜底：1.5s 后未触发的全部显示，避免锚点直跳或打印时内容不可见
+    setTimeout(function(){ rev.forEach(function(el){ el.classList.add('in'); }); }, 1500);
+  }
+</script>
+</body>
+</html>
